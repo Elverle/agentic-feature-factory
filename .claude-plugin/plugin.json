@@ -1,6 +1,6 @@
 {
   "name": "agentic-feature-factory",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Pipeline di sviluppo feature guidata da agenti (backend e frontend): pianificazione a work-package, revisione architetturale, orchestrazione Opus -> Implementer (Sonnet, high thinking) -> code-review -> documentazione wiki.",
   "author": {
     "name": "Elverle"
