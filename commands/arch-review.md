@@ -1,16 +1,18 @@
 ---
-description: Revisione architetturale che mette in relazione la codebase attuale con le feature pianificate e propone i fix ad alto impatto da fare prima/dopo lo sviluppo
-argument-hint: [percorso piani/architettura, default content/]
+description: Revisione architetturale della feature — mette il suo piano contro la codebase e propone i fix ad alto impatto, ciascuno con il work package di innesto
+argument-hint: <numero-feature> (vuoto = revisione dell'intero set pianificato)
 model: opus
 ---
 
-Voglio una revisione approfondita che metta in relazione la codebase attuale con le feature
-pianificate — i piani si trovano nel percorso passato come argomento (**$ARGUMENTS**);
-se l'argomento è vuoto, cerca i piani in `content/feature/feature-*/plan.md` (e gli altri
-documenti di pianificazione in `content/`). Considera sempre anche l'architettura di
-riferimento del progetto.
-L'obiettivo è capire se l'architettura attuale regge il carico di quello che ci costruirò
-sopra e dove vale la pena migliorare PRIMA di procedere con l'implementazione.
+Revisione architetturale della **feature $1**. Leggi il suo piano in
+`content/feature/feature-$1/plan.md`, considerando anche i piani delle feature
+adiacenti/predecessori e l'architettura di riferimento del progetto. L'obiettivo è capire se
+l'architettura attuale regge il carico di ciò che **questa feature** ci costruirà sopra e dove
+vale la pena migliorare PRIMA di implementarla.
+
+(Se non passi un numero, fai la revisione dell'**intero set** di feature pianificate sotto
+`content/` — in quel caso salva l'output in `content/architecture-review-<data>.md`; vedi la
+nota finale.)
 
 Non voglio un audit di stile o nitpick cosmetici: voglio pain point strutturali, reali, con
 prove concrete nel codice — e proposte di miglioramento valutate su impatto e costo, non un
@@ -33,9 +35,9 @@ Esplora i moduli/cartelle rilevanti (o "l'intero progetto") e valuta:
 Per ogni pain point: cita i file/percorsi coinvolti, spiega perché è un problema (non solo
 cosa non ti piace) e classifica l'impatto (**bloccante / da tenere d'occhio / cosmetico**).
 
-## FASE 2 — Le feature pianificate rispetto alla codebase attuale
+## FASE 2 — La feature rispetto alla codebase attuale
 
-Leggi i piani e verifica, feature per feature:
+Leggi il piano della feature (e, per contesto, quelli adiacenti) e verifica:
 
 - Si appoggia correttamente sui pattern esistenti o li ignora/duplica?
 - Introduce un'incoerenza con le convenzioni già in uso nel progetto?
@@ -62,5 +64,7 @@ Leggi i piani e verifica, feature per feature:
 Se un'area non ha problemi degni di nota, dillo esplicitamente invece di inventare un
 miglioramento per riempirla.
 
-Al termine, salva la revisione come **`content/architecture-review-<data-odierna>.md`**, così
-resta il documento condiviso citato da `/feature-dev`.
+Al termine, salva la revisione **dentro la cartella della feature**:
+**`content/feature/feature-$1/architecture-review-<data-odierna>.md`** — è lì che
+`/feature-dev $1` la cercherà. (Se hai fatto la revisione dell'intero set senza numero,
+salvala invece in `content/architecture-review-<data-odierna>.md`.)

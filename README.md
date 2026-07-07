@@ -31,15 +31,19 @@ content/
         └── plan.md            # work-package WP5.1…WP5.n con contratti + mappa dipendenze
 ```
 
-### 2. Revisione — `/arch-review`
+### 2. Revisione — `/arch-review 5`
 
-Mette la codebase contro il piano e produce i pain point con ID stabile e il WP di innesto:
+Mette il piano della feature 5 contro la codebase e produce i pain point con ID stabile e il
+WP di innesto, **dentro la cartella della feature**:
 
 ```
 content/
-├── architecture-review-2026-07-07.md   # P1 → dentro WP5.2 · P2 → prima di WP5.1 · …
 ├── feature-index.md
-└── feature/feature-5/…
+└── feature/
+    └── feature-5/
+        ├── requirements.md
+        ├── plan.md
+        └── architecture-review-2026-07-07.md   # P1 → dentro WP5.2 · P2 → prima di WP5.1 · …
 ```
 
 ### 3. Sviluppo — `/feature-dev 5`
@@ -96,17 +100,18 @@ Tutto vive sotto **`content/`** (creata se assente), con numerazione + cartelle 
 ```
 <repo-root>/content/                    # creata se assente
 ├── feature-index.md                    # registro: numero, titolo, stato, link al piano
-├── architecture-review-<data>.md       # revisione condivisa (output di /arch-review)
 └── feature/
     └── feature-<n>/
         ├── requirements.md             # decisioni emerse dalle domande di /feature-plan
-        └── plan.md                     # piano WP (output di /feature-plan, input di /feature-dev)
+        ├── plan.md                     # piano WP (output di /feature-plan, input di /feature-dev)
+        └── architecture-review-<data>.md   # revisione della feature (output di /arch-review <n>)
 ```
 
 `/feature-plan` assegna il numero (dal `content/feature-index.md`), crea `content/` se manca +
-la cartella della feature, e salva il piano; `/feature-dev <n>` legge
-`content/feature/feature-<n>/plan.md` e aggiorna lo stato nell'indice a fine ciclo. Se il repo
-usa già un layout diverso, i comandi si adattano a quello esistente invece di duplicarlo.
+la cartella della feature, e salva il piano; `/arch-review <n>` salva la revisione nella stessa
+cartella; `/feature-dev <n>` legge `content/feature/feature-<n>/plan.md` (+ la revisione) e
+aggiorna lo stato nell'indice a fine ciclo. Se il repo usa già un layout diverso, i comandi si
+adattano a quello esistente invece di duplicarlo.
 
 ## Installazione (marketplace locale)
 

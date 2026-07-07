@@ -26,8 +26,9 @@ Leggi integralmente, in quest'ordine, e non procedere finché non li hai assimil
 1. **Il PIANO della feature** — già diviso in work package (WP) con *contratti condivisi*,
    *convenzioni comuni*, *mappa delle dipendenze* e *checklist finale*. È la fonte
    autorevole di cosa costruire.
-2. **La revisione architetturale** più recente (`content/architecture-review-*.md`, se
-   presente). Contiene pain point con ID (`P1`, `P2`, ...) e,
+2. **La revisione architetturale** della feature
+   (`content/feature/feature-$1/architecture-review-*.md`; in mancanza, la revisione d'insieme
+   `content/architecture-review-*.md`), se presente. Contiene pain point con ID (`P1`, `P2`, ...) e,
    per ciascuno, il work package in cui vanno innestati: leggila per sapere quali piccoli fix
    applicare **durante** questa feature. Vedi Fase 2.
 3. La **specifica** (master-plan) e l'**architettura** di riferimento citate dal piano.
