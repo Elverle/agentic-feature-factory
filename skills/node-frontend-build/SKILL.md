@@ -1,61 +1,69 @@
 ---
 name: node-frontend-build
 description: Use when building or testing a Node.js frontend (React / Next.js / Vite / TypeScript). Explains how to detect the package manager (pnpm/yarn/npm), run lint + typecheck + test + production build as the verification gate, and the common failure modes. Use this as the "verify" gate for frontend features in place of a backend build.
-version: 1.0.0
+version: 2.0.0
 ---
 
-# Build & test — frontend Node.js (React / Next.js / Vite / TS)
+# Build & test — Node.js frontend (React / Next.js / Vite / TS)
 
-Guida operativa per verificare una feature frontend. È l'equivalente FE del gate `mvn verify`
-del backend: usala come **gate di verifica** nella pipeline `/feature-dev` quando lavori su un
-progetto Node.
+Operating guide for verifying a frontend feature. It is the FE equivalent of the backend's
+`mvn verify` gate: use it as the **verification gate** in the `/feature-dev` pipeline when
+working on a Node project.
 
-## 1. Rileva il package manager (non assumere `npm`)
+## 0. Precedence rule
 
-Guarda il lockfile nella root del progetto:
+**The project's `AGENTS.md`, `CLAUDE.md` and local skills win over this skill.** If the
+project documents its own scripts, flags or verification sequence, use those. This skill only
+covers what the project does not say.
 
-| Lockfile presente | Package manager | Install | Esegui script |
+## 1. Detect the package manager (don't assume `npm`)
+
+Look at the lockfile in the project root:
+
+| Lockfile present | Package manager | Install | Run scripts |
 | --- | --- | --- | --- |
 | `pnpm-lock.yaml` | pnpm | `pnpm install` | `pnpm <script>` |
 | `yarn.lock` | yarn | `yarn install` | `yarn <script>` |
-| `package-lock.json` | npm | `npm ci` (o `npm install`) | `npm run <script>` |
+| `package-lock.json` | npm | `npm ci` (or `npm install`) | `npm run <script>` |
 | `bun.lockb` | bun | `bun install` | `bun run <script>` |
 
-Se non c'è node_modules o l'install è stale, esegui prima l'install del PM corretto.
+If `node_modules` is missing or the install is stale, run the correct PM's install first.
 
-## 2. Il gate di verifica (nell'ordine)
+## 2. The verification gate (in order)
 
-Leggi gli `scripts` in `package.json` e lancia quelli che esistono, in quest'ordine.
-Nomi tipici (adatta a quelli reali del progetto):
+Read the `scripts` in `package.json` and run the ones that exist, in this order.
+Typical names (adapt to the project's real ones):
 
-1. **Lint / format:** `lint` (es. `npm run lint`), eventualmente `format:check` o `prettier --check`.
-2. **Typecheck:** `typecheck` oppure `tsc --noEmit` (per progetti TypeScript senza script dedicato).
-3. **Test:** `test` (Vitest/Jest). In CI usa la modalità non-watch: `vitest run`, `jest --ci`,
-   o `npm test -- --run` a seconda del runner.
-4. **Build di produzione:** `build` (es. `next build`, `vite build`, `tsc && vite build`) —
-   è la verifica più importante: intercetta errori di tipo, import rotti e problemi SSR/RSC
-   che i test unit non vedono.
+1. **Lint / format:** `lint` (e.g. `npm run lint`), possibly `format:check` or
+   `prettier --check`.
+2. **Typecheck:** `typecheck` or `tsc --noEmit` (for TypeScript projects without a dedicated
+   script).
+3. **Test:** `test` (Vitest/Jest). In CI use the non-watch mode: `vitest run`, `jest --ci`,
+   or `npm test -- --run` depending on the runner.
+4. **Production build:** `build` (e.g. `next build`, `vite build`, `tsc && vite build`) —
+   the most important check: it catches type errors, broken imports and SSR/RSC issues that
+   unit tests don't see.
 
-Il gate è **verde** solo se lint + typecheck + test + build passano tutti. Non avanzare
-all'ondata successiva con uno di questi rosso.
+The gate is **green** only if lint + typecheck + test + build all pass. Do not advance to the
+next wave with any of them red.
 
-## 3. Failure mode comuni (diagnosi rapida)
+## 3. Common failure modes (fast diagnosis)
 
-- **`next build` fallisce su un errore di tipo** ma i test passano → è codice: il build FE
-  compila TUTTO in strict mode, spesso più severo dei singoli test. Correggi il tipo, non
-  disabilitare il check.
-- **Server Components / hydration**: errori tipo "useState is not a function in a Server
-  Component" o hydration mismatch → confine client/server sbagliato (`"use client"` mancante o
-  di troppo), non un bug di logica.
-- **Errori ESLint bloccanti in build** (Next tratta il lint come errore in `next build`):
-  correggi o, se davvero fuori scope, isola con disable mirato commentato — mai disabilitare
-  il lint globale.
-- **Test in watch mode che non termina**: hai dimenticato la flag non-interattiva
-  (`vitest run`, `--ci`, `--run`). In una pipeline agentica un test in watch appende.
-- **Mismatch package manager**: lanciare `npm` in un repo `pnpm` reinstalla e sporca il
-  lockfile. Usa sempre il PM del lockfile (punto 1).
+- **`next build` fails on a type error** while tests pass → it's code: the FE build compiles
+  EVERYTHING in strict mode, often stricter than individual tests. Fix the type, don't
+  disable the check.
+- **Server Components / hydration**: errors like "useState is not a function in a Server
+  Component" or hydration mismatches → wrong client/server boundary (missing or extra
+  `"use client"`), not a logic bug.
+- **Blocking ESLint errors in build** (Next treats lint as an error in `next build`): fix
+  them or, if truly out of scope, isolate with a targeted commented disable — never disable
+  lint globally.
+- **A test in watch mode that never ends**: you forgot the non-interactive flag
+  (`vitest run`, `--ci`, `--run`). In an agentic pipeline a watching test hangs everything.
+- **Package manager mismatch**: running `npm` in a `pnpm` repo reinstalls and dirties the
+  lockfile. Always use the lockfile's PM (step 1).
 
-## 4. Avvio manuale (smoke)
+## 4. Manual start (smoke)
 
-Per una verifica visiva: `<pm> run dev` (es. `pnpm dev`) e apri l'URL indicato (tipicamente
-`http://localhost:3000` per Next, `http://localhost:5173` per Vite).
+For a visual check: `<pm> run dev` (e.g. `pnpm dev`) and open the printed URL (typically
+`http://localhost:3000` for Next, `http://localhost:5173` for Vite).

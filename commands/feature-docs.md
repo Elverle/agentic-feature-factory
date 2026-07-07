@@ -1,52 +1,51 @@
 ---
-description: Documenta il codice in formato wiki tramite l'agente codebase-expert (init/scan/query/lint). Usabile su backend e frontend.
-argument-hint: [numero-feature | percorso/area | "lint" | "query: <domanda>"]
+description: Documents the code in wiki format via the feature-documenter agent (feature/area/lint), adopting the project's documentation conventions. Works on backend and frontend.
+argument-hint: [feature-number | path/area | "lint"]
 model: opus
 ---
 
-Sei l'orchestratore della **documentazione wiki**. Non scrivi tu le pagine: dispatchi il
-sub-agent **`codebase-expert`**, che costruisce e mantiene una wiki tecnica interna al
-progetto (entità, concetti, sorgenti, topic, analisi) con convenzioni proprie già embedded.
+You are the orchestrator of the **wiki documentation**. You do not write the pages yourself:
+you dispatch the **`feature-documenter`** sub-agent, which updates the project's technical
+documentation adopting the project's own conventions (AGENTS.md/CLAUDE.md, the existing
+wiki's format) before its own.
 
-**Ambito richiesto:** `$ARGUMENTS`
+**Requested scope:** `$ARGUMENTS`
 
-## Passo 1 — Determina la modalità dall'argomento
+## Step 1 — Determine the mode from the argument
 
-- **vuoto** → documenta il lavoro recente: la wiki della porzione di codice modificata
-  di recente (usa `git diff`/`git log` per capire cosa è cambiato) o, se il progetto non ha
-  ancora una wiki, uno scan iniziale delle aree principali.
-- **un numero di feature** (es. `5`) → documenta la feature: individua i file toccati da
-  quella feature (dal piano `content/feature/feature-5/plan.md` e/o dal `git diff`) e scan mirato di
-  quelle aree.
-- **un percorso/area** (es. `src/main/java/.../service` o `app/(dashboard)`) → scan mirato di
-  quella cartella/modulo.
-- **`lint`** → health check della wiki (pagine orfane, link rotti, contenuto stale,
-  contraddizioni, gap di copertura).
-- **`query: <domanda>`** → consulta wiki + codice e rispondi alla domanda, proponendo una
-  pagina `analyses/` se la risposta è sostanziale.
+- **empty** → document the recent work: use `git diff`/`git log` to understand what changed
+  recently and have those areas documented; if the project has no wiki yet, an initial scan
+  of the main areas.
+- **a feature number** (e.g. `5`) → document the feature: locate its plan and touched files
+  (resolve the planning layout: `plans_dir` from the settings file
+  `.claude/agentic-feature-factory.local.md` if present, otherwise `content/`, then the repo
+  root) and pass the plan and areas to the agent.
+- **a path/area** (e.g. `src/main/java/.../service` or `app/(dashboard)`) → "document area"
+  mode on that folder/module.
+- **`lint`** → wiki health check (orphan pages, broken links, stale content, contradictions,
+  coverage gaps).
 
-## Passo 2 — Dispatch di `codebase-expert`
+## Step 2 — Dispatch `feature-documenter`
 
-Dispatcha **un** agente `codebase-expert` (`subagent_type: "codebase-expert"`) con un prompt
-che includa:
+Dispatch **one** `feature-documenter` agent (`subagent_type: "feature-documenter"`) with a
+prompt that includes:
 
-1. La **modalità** e l'**ambito** determinati al Passo 1.
-2. L'istruzione di **localizzare la wiki** (`wiki/`, `docs/wiki/`, `src/wiki/`); se non
-   esiste, **inizializzarla** con la struttura standard e poi procedere — senza chiedere
-   conferma, perché come sub-agent non può interagire con l'utente a metà esecuzione.
-3. Il vincolo di **agire in modo non distruttivo**: leggere sempre una pagina prima di
-   riscriverla, **preferire l'aggiornamento** alla ricreazione, mai modificare `wiki/raw/`,
-   segnalare le contraddizioni invece di sovrascriverle in silenzio, e aggiornare
-   `wiki/index.md` e `wiki/log.md` al termine.
-4. La consegna di **rispettare le convenzioni wiki già definite nel proprio body** (frontmatter,
-   `[[wikilinks]]`, tipi di pagina entity/concept/source/topic/analysis, tag per lo stack —
-   funziona sia per backend Spring/JPA sia per frontend React/Next) e la lingua del codice.
-5. La richiesta di **chiudere con un report**: pagine create, pagine aggiornate, contraddizioni
-   o gap rilevati, e cosa resta da documentare.
+1. The **mode** and **scope** determined in Step 1 (for a feature: plan + touched files).
+2. The **`wiki_dir`** from the settings file, if set; otherwise the instruction to locate
+   the wiki (`wiki/`, `docs/wiki/`, `src/wiki/`, `docs/`) and to initialize the default
+   structure ONLY if the project has no documentation at all — without asking for
+   confirmation, because as a sub-agent it cannot interact mid-execution.
+3. A reminder of the **convention hierarchy** in its body: the project's AGENTS.md/CLAUDE.md
+   rules → the format observed in the existing wiki → the default. Never impose the default
+   format on a wiki that uses a different one.
+4. The constraint to **act non-destructively**: read before rewriting, prefer updating over
+   recreating, report contradictions instead of overwriting them.
+5. The request to **close with the report** defined in its body (pages created/updated,
+   conventions adopted, contradictions/gaps).
 
-## Passo 3 — Riepilogo all'utente
+## Step 3 — Summary to the user
 
-Quando l'agente ritorna, presentami in modo compatto: pagine create/aggiornate (con path),
-eventuali contraddizioni/gap segnalati, e i prossimi passi consigliati (es. "manca la pagina
-topic per il sistema di auth"). Non committare la wiki a meno che non te lo chieda
-esplicitamente.
+When the agent returns, present me compactly: pages created/updated (with paths), the
+conventions it adopted and where it derived them from, any contradictions/gaps, and the
+recommended next steps (e.g. "the topic page for the auth system is missing"). Do not commit
+the wiki unless I explicitly ask.

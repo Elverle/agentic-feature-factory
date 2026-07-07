@@ -1,54 +1,85 @@
 ---
 name: spring-maven-build
-description: Use when building or testing a Spring Boot + Maven backend whose integration tests use Testcontainers-Postgres. Explains that `mvn verify` runs Spotless + unit (*Test) + integration (*IT) tests, that the Docker daemon MUST be running for the Testcontainers-Postgres container, that code must be formatted with `mvn spotless:apply` before commit, and the ddl-auto=validate / Flyway gotchas.
-version: 1.0.0
+description: Use when building or testing a Spring Boot + Maven backend (single or multi-module) as the verification gate of a feature. Covers `mvn verify` semantics, the Docker requirement for Testcontainers integration tests, formatter (Spotless) usage, migration-tool detection (Flyway vs Liquibase), multi-module scoped runs, and fast diagnosis of a red build.
+version: 2.0.0
 ---
 
-# Build & test — Spring Boot + Maven + Testcontainers
+# Build & test — Spring Boot + Maven backend
 
-Guida operativa per compilare, testare e formattare un backend Spring Boot con Maven i cui
-integration test girano su **Testcontainers-Postgres**. Usala prima di lanciare la build o di
-diagnosticare un `mvn verify` rosso.
+Verification gate for backend features on Spring Boot + Maven. Use it before launching the
+build or when diagnosing a red `mvn verify`.
 
-## Requisito bloccante: Docker attivo
+## Precedence rule (before anything else)
 
-Gli integration test (classi `*IT`, eseguite da **failsafe**) avviano un container
-Postgres via Testcontainers (tipicamente un singleton condiviso). **Il Docker daemon deve
-essere in esecuzione** prima di `mvn verify` / `mvn failsafe:integration-test`, altrimenti
-gli IT falliscono con errori di connessione al Docker host, non con errori applicativi —
-un rosso fuorviante. Se il DB locale serve anche per l'avvio manuale: `docker compose up -d`.
+**The project's `AGENTS.md`, `CLAUDE.md` and local skills win over this skill.** If the
+project documents its own build commands, flags, profiles or gotchas (e.g. Surefire flags for
+module-scoped test runs), use those. This skill only covers what the project does not say.
 
-## Comandi
+## Blocking requirement: Docker running (if there are Testcontainers ITs)
 
-| Obiettivo | Comando |
+Integration tests (typically `*IT` classes run by failsafe) that use Testcontainers start
+containers (e.g. Postgres) via Docker. **The Docker daemon must be running** before
+`mvn verify`, otherwise the ITs fail with Docker-host connection errors — an infrastructure
+red, not an application one, and a misleading signal. If the local DB is also needed to run
+the app manually: `docker compose up -d`.
+
+## Commands
+
+| Goal | Command |
 | --- | --- |
-| Formattare il codice (google-java-format via Spotless) | `mvn spotless:apply` |
-| Solo compilazione | `mvn compile` (o `mvn test-compile`) |
-| Solo unit test (`*Test`, surefire) | `mvn test` |
-| **Suite completa** (Spotless check + unit + IT) | `mvn verify` |
-| Avvio locale con profilo dev | `mvn spring-boot:run -Dspring-boot.run.profiles=local` (DB da `docker compose up -d`) |
+| Formatting (if the project uses Spotless) | `mvn spotless:apply` |
+| Compile only | `mvn compile` (or `mvn test-compile`) |
+| Unit tests only (`*Test`, surefire) | `mvn test` |
+| **Full suite** (authoritative gate) | `mvn verify` |
 
-- **`mvn verify` è il gate autorevole**: fa girare Spotless (in verifica), gli unit `*Test`
-  (surefire) e gli integration `*IT` (failsafe). Se è verde, la feature è integrata.
-- **Formatta sempre prima di committare**: `mvn verify` **fallisce su codice non formattato**.
-  Esegui `mvn spotless:apply` prima di ogni commit e dopo ogni blocco di modifiche.
+- **`mvn verify` is the authoritative gate**: unit (surefire) + integration (failsafe) +
+  whatever quality checks are configured (formatter, enforcer). Green means the feature is
+  integrated.
+- If the project runs a formatter as a check (Spotless, fmt-maven): **format before
+  committing** and after every batch of edits, or `mvn verify` fails on formatting rather
+  than on logic.
 
-## Gotcha di schema (evitano rossi criptici al boot)
+## Multi-module (reactor)
 
-- **`spring.jpa.hibernate.ddl-auto=validate`** è attivo: Flyway è autorevole per lo schema.
-  Le entity DEVONO combaciare col DDL. In particolare le colonne `TEXT` vanno dichiarate con
-  `@Column(columnDefinition = "TEXT")`, altrimenti la validazione Hibernate fallisce all'avvio
-  di **qualsiasi** IT (il contesto Spring non parte).
-- La tabella **`vector_store`** (pgvector) è gestita da **Spring AI**, mai da Flyway: non
-  crearla né alterarla nelle migration.
-- Ogni nuova migration Flyway (`V<n>__*.sql`) viene applicata all'avvio del contesto negli IT:
-  un errore SQL nella migration si manifesta come fallimento di boot degli IT esistenti.
+If the root `pom.xml` declares `<modules>`:
 
-## Diagnosi rapida di un `mvn verify` rosso
+- The gate is still **`mvn verify` from the root**: it builds and tests every module in
+  reactor order.
+- To work on a single module: `mvn verify -pl <module> -am` (`-am` also builds the modules
+  it depends on).
+- Scoped test runs (`-Dtest=...`) in a multi-module build often need extra flags
+  (e.g. `-DfailIfNoTests=false`) or must be launched from the right module rather than the
+  root: **check the project's AGENTS.md/CLAUDE.md first** — they usually document the
+  correct combination.
 
-1. **Fallisce Spotless?** → `mvn spotless:apply` e ri-lancia.
-2. **Gli IT non partono / errore Docker?** → verifica che Docker sia attivo.
-3. **Errore di validazione Hibernate al boot?** → disallineamento entity ↔ schema Flyway
-   (vedi gotcha sopra), non un bug di logica.
-4. **Falliscono asserzioni di test?** → è codice: isola il `*Test`/`*IT` colpevole
-   (`mvn -Dtest=NomeTest test` o `-Dit.test=NomeIT verify`) e correggi la causa radice.
+## Schema migrations: detect the tool, don't assume it
+
+Before touching the schema, look at what the project uses:
+
+| Tool | Clues | Convention |
+| --- | --- | --- |
+| **Flyway** | `src/main/resources/db/migration/`, `V<n>__description.sql` files | new migration = next `V<n>`; never modify already-applied migrations |
+| **Liquibase** | `db/changelog/` with XML/YAML changelogs, a `*changelog-master*`/root changelog | new changeset where the project's structure expects it + include it in the root changelog; mimic the numbering and pattern of adjacent changesets |
+
+Gotchas common to both:
+
+- With **`spring.jpa.hibernate.ddl-auto=validate`** the migrations are authoritative for the
+  schema: entities MUST match the DDL (types, nullability, `TEXT` columns declared with
+  `@Column(columnDefinition = "TEXT")`, …). A mismatch fails the Spring context at boot →
+  **all** ITs red at startup, not just the new ones.
+- Every new migration is applied when the context starts in the ITs: a SQL/YAML error shows
+  up as a boot failure of existing ITs.
+- If a table is managed at runtime by a framework/library rather than by migrations, do not
+  create or alter it in a migration: verify in the project who owns that table before
+  writing DDL.
+
+## Fast diagnosis of a red `mvn verify`
+
+1. **Formatting check failed?** → apply the project's formatter (`mvn spotless:apply`) and
+   rerun.
+2. **ITs don't start / Docker error?** → Docker daemon down or unreachable.
+3. **Hibernate validation error at boot?** → entity ↔ migration mismatch (see above), not a
+   logic bug.
+4. **Test assertions failing?** → it's code: isolate the offending test
+   (`mvn -Dtest=TestName test` or `-Dit.test=ITName verify`, from the right module if
+   multi-module) and fix the root cause.

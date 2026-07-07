@@ -1,70 +1,74 @@
 ---
-description: Revisione architetturale della feature — mette il suo piano contro la codebase e propone i fix ad alto impatto, ciascuno con il work package di innesto
-argument-hint: <numero-feature> (vuoto = revisione dell'intero set pianificato)
+description: Architecture review of a feature — puts its plan against the codebase and proposes the high-impact fixes, each with the work package to graft it into
+argument-hint: <feature-number> (empty = review of the whole planned set)
 model: opus
 ---
 
-Revisione architetturale della **feature $1**. Leggi il suo piano in
-`content/feature/feature-$1/plan.md`, considerando anche i piani delle feature
-adiacenti/predecessori e l'architettura di riferimento del progetto. L'obiettivo è capire se
-l'architettura attuale regge il carico di ciò che **questa feature** ci costruirà sopra e dove
-vale la pena migliorare PRIMA di implementarla.
+Architecture review of **feature $1**.
 
-(Se non passi un numero, fai la revisione dell'**intero set** di feature pianificate sotto
-`content/` — in quel caso salva l'output in `content/architecture-review-<data>.md`; vedi la
-nota finale.)
+First, **resolve the planning layout**: if `.claude/agentic-feature-factory.local.md`
+exists, use `plans_dir` from its frontmatter; otherwise look for the feature's plan in
+`content/feature/feature-$1/plan.md`, then in the repo's legacy layouts
+(`content/feature-$1-*-plan.md`, `feature/feature-$1/`). Read the plan, also considering the
+plans of adjacent/predecessor features and the project's reference architecture. The goal is
+to understand whether the current architecture can carry what **this feature** will build on
+top of it, and where it is worth improving BEFORE implementing it.
 
-Non voglio un audit di stile o nitpick cosmetici: voglio pain point strutturali, reali, con
-prove concrete nel codice — e proposte di miglioramento valutate su impatto e costo, non un
-elenco di best practice generiche.
+(If you are not given a number, review the **whole set** of planned features in the resolved
+layout — in that case save the output at the layout root, e.g.
+`content/architecture-review-<date>.md`; see the final note.)
 
-## FASE 1 — Analisi della codebase attuale
+I don't want a style audit or cosmetic nitpicks: I want structural, real pain points with
+concrete evidence in the code — and improvement proposals weighed by impact and cost, not a
+list of generic best practices.
 
-Esplora i moduli/cartelle rilevanti (o "l'intero progetto") e valuta:
+## PHASE 1 — Analysis of the current codebase
 
-- **Coerenza architetturale:** i pattern (naming, struttura a layer, gestione errori,
-  validazione, accesso dati) sono applicati in modo uniforme o ci sono incoerenze tra
-  moduli/feature simili?
-- **Accoppiamento e confini:** dipendenze che attraversano layer in modo scorretto, logica
-  duplicata, responsabilità mescolate.
-- **Debito tecnico visibile:** codice fragile, workaround, TODO/FIXME irrisolti, aree
-  critiche senza test.
-- **Tenuta del design attuale:** cosa oggi "funziona" ma non reggerebbe bene l'aggiunta di
-  nuove feature o un aumento di complessità/carico.
+Explore the relevant modules/folders (or "the whole project") and assess:
 
-Per ogni pain point: cita i file/percorsi coinvolti, spiega perché è un problema (non solo
-cosa non ti piace) e classifica l'impatto (**bloccante / da tenere d'occhio / cosmetico**).
+- **Architectural consistency:** are the patterns (naming, layer structure, error handling,
+  validation, data access) applied uniformly, or are there inconsistencies between similar
+  modules/features?
+- **Coupling and boundaries:** dependencies crossing layers incorrectly, duplicated logic,
+  mixed responsibilities.
+- **Visible technical debt:** fragile code, workarounds, unresolved TODO/FIXME, critical
+  areas without tests.
+- **Resilience of the current design:** what "works" today but would not hold up well under
+  new features or increased complexity/load.
 
-## FASE 2 — La feature rispetto alla codebase attuale
+For each pain point: cite the files/paths involved, explain why it is a problem (not just
+what you dislike) and classify the impact (**blocking / worth watching / cosmetic**).
 
-Leggi il piano della feature (e, per contesto, quelli adiacenti) e verifica:
+## PHASE 2 — The feature against the current codebase
 
-- Si appoggia correttamente sui pattern esistenti o li ignora/duplica?
-- Introduce un'incoerenza con le convenzioni già in uso nel progetto?
-- Richiede un refactoring preliminare per essere implementata bene, o può essere costruita
-  in modo pulito così com'è?
-- Amplifica un pain point già individuato in Fase 1 (es. si appoggia pesantemente su un
-  modulo già fragile)?
-- C'è complessità nel piano sproporzionata rispetto al valore della feature
-  (over-engineering), o al contrario scorciatoie che creeranno debito?
+Read the feature's plan (and, for context, the adjacent ones) and verify:
 
-## FASE 3 — Output
+- Does it lean correctly on the existing patterns, or does it ignore/duplicate them?
+- Does it introduce an inconsistency with the conventions already in use in the project?
+- Does it require preliminary refactoring to be implemented well, or can it be built cleanly
+  as-is?
+- Does it amplify a pain point already identified in Phase 1 (e.g. it leans heavily on an
+  already fragile module)?
+- Is there complexity in the plan disproportionate to the feature's value
+  (over-engineering), or conversely shortcuts that will create debt?
 
-1. Pain point attuali, ordinati per impatto, con riferimento ai file (assegna a ciascuno un
-   ID stabile tipo `P1`, `P2`, ... così i comandi successivi possono citarli).
-2. Rischi introdotti o amplificati dalle feature pianificate.
-3. Per ciascun punto, proposta di miglioramento concreta (non generica): se richiede
-   refactoring, stima la dimensione (piccolo/medio/grande) e **dove va innestata** — cita il
-   work package specifico del piano (es. "dentro WP4.3") e se conviene farlo prima o dopo
-   l'implementazione delle nuove feature. Questo aggancio WP è ciò che `/feature-dev`
-   leggerà per applicare i fix nel posto giusto.
-4. Sezione finale "se potessi migliorare solo 3 cose prima di procedere, quali sarebbero e
-   perché" — forzati a prioritizzare, non limitarti a elencare tutto.
+## PHASE 3 — Output
 
-Se un'area non ha problemi degni di nota, dillo esplicitamente invece di inventare un
-miglioramento per riempirla.
+1. Current pain points, ordered by impact, with file references (assign each a stable ID
+   like `P1`, `P2`, ... so later commands can cite them).
+2. Risks introduced or amplified by the planned features.
+3. For each point, a concrete improvement proposal (not a generic one): if it requires
+   refactoring, estimate the size (small/medium/large) and **where it should be grafted** —
+   cite the specific work package of the plan (e.g. "inside WP4.3") and whether it is better
+   done before or after implementing the new features. This WP anchor is what `/feature-dev`
+   will read to apply the fixes in the right place.
+4. A final section "if you could improve only 3 things before proceeding, which and why" —
+   force yourself to prioritize, don't just list everything.
 
-Al termine, salva la revisione **dentro la cartella della feature**:
-**`content/feature/feature-$1/architecture-review-<data-odierna>.md`** — è lì che
-`/feature-dev $1` la cercherà. (Se hai fatto la revisione dell'intero set senza numero,
-salvala invece in `content/architecture-review-<data-odierna>.md`.)
+If an area has no problems worth mentioning, say so explicitly instead of inventing an
+improvement to fill it.
+
+When done, save the review **inside the feature's folder** (resolved layout; default
+**`content/feature/feature-$1/architecture-review-<today's-date>.md`**) — that is where
+`/feature-dev $1` will look for it. (If you reviewed the whole set without a number, save it
+instead at the layout root, e.g. `content/architecture-review-<today's-date>.md`.)

@@ -1,99 +1,110 @@
 ---
-description: Analizza requisiti + codebase e ti fa domande di chiarimento, poi produce un piano a work-package. Gestisce numerazione e cartelle feature.
-argument-hint: <numero-feature o descrizione> [percorso spec/master-plan]
+description: Analyzes requirements + codebase and asks you clarifying questions, then produces a work-package plan. Handles feature numbering and folders.
+argument-hint: <feature-number or description> [spec/master-plan path]
 model: opus
 ---
 
-Devi produrre il **piano di implementazione** della feature: **$ARGUMENTS**
+You must produce the **implementation plan** for the feature: **$ARGUMENTS**
 
-Sei in **modalità pianificazione**: non tocchi codice sorgente. Il tuo output sono solo
-documenti di pianificazione (cartella + numero feature, i requisiti emersi, il piano WP).
-Il piano NON lo implementerai tu: verrà spezzato in work package e assegnato a istanze Sonnet
-isolate, ciascuna con come UNICO contesto il testo del piano — nessun accesso a questa
-conversazione, nessuna possibilità di farti domande, e se lavorano in parallelo non comunicano
-tra loro. Ogni ambiguità o assunzione implicita nel piano diventa un errore nel codice finale.
+You are in **planning mode**: you do not touch source code. Your output is planning documents
+only (feature folder + number, the decisions that emerged, the WP plan). You will NOT
+implement this plan yourself: it will be split into work packages and assigned to isolated
+Sonnet instances, each having the plan text as its ONLY context — no access to this
+conversation, no way to ask you questions, and if they run in parallel they cannot talk to
+each other. Every ambiguity or implicit assumption in the plan becomes a bug in the final
+code.
 
-## Fase A — Numero e cartella della feature
+## Phase A — Planning layout, feature number and folder
 
-1. Determina il **numero feature**: se l'argomento è (o inizia con) un numero, usalo;
-   altrimenti leggi `content/feature-index.md` (se `content/` o il file mancano, la prima è
-   `1`) e assegna il **prossimo** numero libero.
-2. Crea `content/` se non esiste, poi la cartella `content/feature/feature-<n>/`.
-3. Annunciami numero e titolo che intendi usare.
+1. **Resolve the planning layout**, in this order:
+   - **Plugin settings**: if `.claude/agentic-feature-factory.local.md` exists, read
+     `plans_dir` from its frontmatter and use it as the root for the index and the plans
+     (skip discovery).
+   - **Discovery of the existing layout**: look for `feature-index.md` first in `content/`,
+     then in the **repo root**, then anywhere (glob, excluding `node_modules` and the like).
+     Also look for existing plans (`content/feature/feature-*/`, `content/feature-*-plan.md`,
+     `feature/feature-*/`). If you find an index, **adopt its location, its column schema and
+     the plan convention it references** — NEVER create a second index or a parallel layout.
+     If you find more than one conflicting convention (e.g. an index at the root plus flat
+     plans in `content/`), **ask me with `AskUserQuestion` which one to adopt** before
+     writing anything.
+   - **Default** (no existing layout): `content/feature-index.md` +
+     `content/feature/feature-<n>/`.
+2. Determine the **feature number**: if the argument is (or starts with) a number, use it;
+   otherwise assign the **next** free number by reading the index AND the existing plan
+   folders/files (if the index is stale, the higher of the two wins).
+3. Create the feature folder according to the resolved layout.
+4. Announce in one line the layout you chose, plus the number and title you intend to use.
 
-## Fase B — Analisi e domande (NON saltarla)
+## Phase B — Analysis and questions (do NOT skip it)
 
-Prima di scrivere una riga di piano:
+Before writing a single line of the plan:
 
-1. Leggi la specifica/master-plan (dal secondo argomento o dai documenti di pianificazione del
-   progetto) ed **esplora la codebase reale**: pattern, convenzioni, struttura a layer, file
-   che verranno toccati, contratti delle feature adiacenti, as-built dei predecessori. Cita
-   file reali, non descrizioni astratte.
-2. Elenca a te stesso le **ambiguità, le decisioni aperte, i trade-off, le assunzioni rischiose
-   e i confini di scope incerti** che emergono.
-3. **Fammi domande mirate** solo su ciò che cambia davvero il piano:
-   - Usa **`AskUserQuestion`** per le scelte discrete (dammi 2–4 opzioni con un tuo consiglio
-     in prima posizione), raggruppando più domande insieme invece di spararle una per volta.
-   - Per risposte libere (numeri, nomi, vincoli), chiedimi in chat.
-   - **Attendi le mie risposte** prima di procedere.
-   - Ciò che è deciso in modo netto dalla codebase o dalla spec **non chiedermelo**: decidilo,
-     motiva in una riga, e vai avanti. Chiedimi solo il resto.
-4. Registra le decisioni prese (le mie risposte + le tue) in
-   `content/feature/feature-<n>/requirements.md`, una riga per decisione con la motivazione:
-   sarà la memoria del "perché" dietro il piano.
+1. Read the spec/master-plan (from the second argument or from the project's planning
+   documents) and **explore the real codebase**: patterns, conventions, layer structure,
+   files that will be touched, contracts of adjacent features, as-built docs of the
+   predecessors. Cite real files, not abstract descriptions.
+2. List to yourself the **ambiguities, open decisions, trade-offs, risky assumptions and
+   uncertain scope boundaries** that emerge.
+3. **Ask me targeted questions** only about what actually changes the plan:
+   - Use **`AskUserQuestion`** for discrete choices (give me 2–4 options with your
+     recommendation first), batching related questions together instead of firing them one
+     at a time.
+   - For free-form answers (numbers, names, constraints), ask me in chat.
+   - **Wait for my answers** before proceeding.
+   - Whatever is clearly decided by the codebase or the spec, **don't ask me**: decide it,
+     justify it in one line, and move on. Ask me only about the rest.
+4. Record the decisions taken (my answers + yours) in the **`requirements.md` of the feature
+   folder** (resolved layout; default `content/feature/feature-<n>/requirements.md`), one
+   line per decision with its rationale: it will be the memory of the "why" behind the plan.
 
-## Fase C — Stesura del piano
+## Phase C — Writing the plan
 
-Scrivi il piano seguendo queste regole:
+Write the plan following these rules:
 
-1. **STRUTTURA IN WORK PACKAGE**
-   Dividi il lavoro in unità autoconclusive. Per ciascuna specifica:
-   - Obiettivo in una frase
-   - Elenco esatto dei file da creare/modificare (path completi)
-   - Pattern/convenzioni esistenti da seguire, citando file reali del progetto come
-     riferimento (non descriverli in astratto)
-   - Passi di implementazione dettagliati: niente "gestire opportunamente", "validare se
-     necessario", "aggiungere gestione errori appropriata" — specifica le regole esatte,
-     i casi limite, i messaggi di errore
-   - Contratti/interfacce esposte ad altri package (tipi, firme di funzioni, DTO, endpoint)
-     scritti per intero: le istanze parallele non possono negoziarli a runtime
-   - Dipendenze esplicite da altri package (cosa deve esistere prima e cosa fornisce)
-   - Criteri di accettazione verificabili
-   - Cosa è esplicitamente FUORI scope, per evitare over-engineering
+1. **WORK-PACKAGE STRUCTURE**
+   Split the work into self-contained units. For each one specify:
+   - One-sentence goal
+   - Exact list of files to create/modify (full paths)
+   - Existing patterns/conventions to follow, citing real project files as reference (do not
+     describe them in the abstract)
+   - Detailed implementation steps: no "handle appropriately", "validate if needed", "add
+     proper error handling" — spell out the exact rules, the edge cases, the error messages
+   - Contracts/interfaces exposed to other packages (types, function signatures, DTOs,
+     endpoints) written out in full: parallel instances cannot negotiate them at runtime
+   - Explicit dependencies on other packages (what must exist first and what it provides)
+   - Verifiable acceptance criteria
+   - What is explicitly OUT of scope, to avoid over-engineering
 
-2. **DECISIONI PRESE ORA, NON RIMANDATE**
-   Le decisioni emerse dalla Fase B vanno scritte nel piano come scelte definitive e motivate.
-   Non lasciare mai una decisione aperta del tipo "scegliere tra A o B in fase di
-   implementazione".
+2. **DECISIONS MADE NOW, NOT DEFERRED**
+   The decisions from Phase B go into the plan as final, motivated choices. Never leave an
+   open decision like "choose between A and B during implementation".
 
-3. **RIUSO**
-   Verifica cosa esiste già nel codebase (utility, service, componenti) e indica
-   esplicitamente cosa va riusato, per evitare che istanze diverse reimplementino la stessa
-   cosa in modo incoerente.
+3. **REUSE**
+   Check what already exists in the codebase (utilities, services, components) and state
+   explicitly what must be reused, so that different instances don't re-implement the same
+   thing inconsistently.
 
-4. **MAPPA DELLE DIPENDENZE**
-   Alla fine del piano, elenca quali work package sono eseguibili in parallelo e quali
-   richiedono un ordine sequenziale stretto.
+4. **DEPENDENCY MAP**
+   At the end of the plan, list which work packages can run in parallel and which require a
+   strict sequential order.
 
-5. **CHECKLIST FINALE**
-   Chiudi con l'indice completo dei work package, così nessun pezzo della feature viene
-   dimenticato nel passaggio di consegne.
+5. **FINAL CHECKLIST**
+   Close with the complete index of work packages, so no piece of the feature is lost in the
+   handover.
 
-6. **AUTOVERIFICA**
-   Prima di darmi il piano definitivo, rileggilo e verifica che ogni punto sopra sia
-   rispettato e che ogni domanda della Fase B abbia trovato risposta nel piano. Se è rimasto
-   qualcosa di vago, non scriverlo in modo ambiguo: chiedimelo ora, prima di finalizzare.
+6. **SELF-CHECK**
+   Before delivering the final plan, re-read it and verify that every point above is
+   satisfied and that every Phase B question found its answer in the plan. If something is
+   still vague, do not write it ambiguously: ask me now, before finalizing.
 
-## Fase D — Salvataggio e indice
+## Phase D — Saving and index
 
-- Salva il piano come **`content/feature/feature-<n>/plan.md`**, con la struttura a
-  work-package qui sopra.
-- Aggiorna **`content/feature-index.md`** (crealo se manca) con la riga della feature:
-  `| <n> | <titolo> | planned | <data> | [plan](feature/feature-<n>/plan.md) |`.
-  Se il file è nuovo, aggiungi l'intestazione: `# Feature Index` e la tabella con colonne
-  `# | Titolo | Stato | Data | Piano` (stati: `planned` → `in-progress` → `reviewed` → `done`).
-- Questo piano è l'input di **`/feature-dev <n>`**.
-
-> Nota: se il progetto usa già un layout di pianificazione diverso (es.
-> `content/feature-<n>-<slug>-plan.md`), adattati a quello esistente invece di crearne uno
-> nuovo — non duplicare le convenzioni.
+- Save the plan where the layout resolved in Phase A expects it (default:
+  **`content/feature/feature-<n>/plan.md`**), with the work-package structure above.
+- Update the **`feature-index.md`** of the resolved layout with the feature's row,
+  **respecting its existing column schema**. Only if no index exists at all, create it (at
+  the default location `content/feature-index.md`) with the heading `# Feature Index` and a
+  table with columns `# | Title | Status | Date | Plan` (states: `planned` → `in-progress` →
+  `reviewed` → `done`).
+- This plan is the input of **`/feature-dev <n>`**.
