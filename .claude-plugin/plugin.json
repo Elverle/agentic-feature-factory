@@ -1,0 +1,22 @@
+{
+  "name": "agentic-feature-factory",
+  "version": "1.1.0",
+  "description": "Pipeline di sviluppo feature guidata da agenti (backend e frontend): pianificazione a work-package, revisione architetturale, orchestrazione Opus -> Implementer (Sonnet, high thinking) -> code-review -> documentazione wiki.",
+  "author": {
+    "name": "Elverle"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Elverle/agentic-feature-factory#readme",
+  "repository": "https://github.com/Elverle/agentic-feature-factory",
+  "keywords": [
+    "orchestration",
+    "agentic",
+    "work-package",
+    "code-review",
+    "documentation",
+    "wiki",
+    "frontend",
+    "backend",
+    "parallel-development"
+  ]
+}

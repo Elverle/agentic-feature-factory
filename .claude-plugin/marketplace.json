@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "smart-portfolio-devkit",
+  "description": "Marketplace locale per la pipeline di sviluppo agentico delle feature (plan -> arch-review -> orchestrazione -> code-review).",
+  "owner": {
+    "name": "Elverle"
+  },
+  "plugins": [
+    {
+      "name": "agentic-feature-factory",
+      "description": "Pianificazione a work-package, revisione architetturale e orchestrazione Opus/Implementer(Sonnet) con code-review finale.",
+      "source": "./",
+      "category": "workflow"
+    }
+  ]
+}
