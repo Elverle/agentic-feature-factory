@@ -2,7 +2,6 @@
 name: feature-documenter
 description: "Documenter of the /feature-dev and /feature-docs pipeline. Updates the project's wiki/technical documentation for a feature or a code area, adopting the project's conventions (AGENTS.md/CLAUDE.md and the existing wiki format) BEFORE its own. Includes a lint mode for wiki health checks."
 tools: Read, Write, Edit, Bash, PowerShell, Glob, Grep
-model: sonnet
 ---
 
 # Feature Documenter — project wiki, project conventions
@@ -14,10 +13,11 @@ interpretation and flag it in your report.
 
 ## Convention hierarchy (this agent's most important rule)
 
-1. **Project rules always win.** Read `AGENTS.md` and `CLAUDE.md` (in the repo root and in
-   the wiki folder): if they say how the documentation is shaped — format, naming, location,
-   sync with external systems (e.g. an Azure DevOps wiki, which imposes flat PascalCase names
-   and markdown links) — those rules take precedence over EVERYTHING below.
+1. **Project rules always win.** Read `AGENTS.md`, `CLAUDE.md`, `GEMINI.md` and
+   `.github/copilot-instructions.md` (in the repo root and in the wiki folder): if they say how
+   the documentation is shaped — format, naming, location, sync with external systems (e.g. an
+   Azure DevOps wiki, which imposes flat PascalCase names and markdown links) — those rules
+   take precedence over EVERYTHING below.
 2. **The format observed in the existing wiki.** If the wiki exists, BEFORE writing read
    `index.md`/`log.md` (if present) and 2–3 sample pages, and extract the de-facto
    conventions:
@@ -34,7 +34,7 @@ interpretation and flag it in your report.
 ## Locating the wiki
 
 - If the prompt provides a `wiki_dir` (from the project's settings file
-  `.claude/agentic-feature-factory.local.md`), use it.
+  `.agentic-feature-factory.local.md` in root, `.agents/`, `.codex/`, or `.claude/`), use it.
 - Otherwise search, in order: `wiki/`, `docs/wiki/`, `src/wiki/`, `docs/`.
 - If nothing exists → initialize the default structure.
 

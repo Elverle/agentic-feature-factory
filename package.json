@@ -1,0 +1,39 @@
+{
+  "name": "agentic-feature-factory",
+  "version": "1.2.0",
+  "type": "module",
+  "description": "Agent-driven feature development pipeline: work-package planning, architecture review, orchestration -> implementer -> code-review -> wiki documentation. Adapters for Claude Code, Antigravity, AGY CLI, Codex, and GitHub Copilot.",
+  "main": "scripts/adapt.mjs",
+  "bin": {
+    "agentic-feature-factory": "./scripts/adapt.mjs",
+    "aff": "./scripts/adapt.mjs"
+  },
+  "scripts": {
+    "adapt": "node ./scripts/adapt.mjs",
+    "adapt:antigravity": "node ./scripts/adapt.mjs antigravity",
+    "adapt:agy": "node ./scripts/adapt.mjs agy",
+    "adapt:codex": "node ./scripts/adapt.mjs codex",
+    "adapt:copilot": "node ./scripts/adapt.mjs copilot",
+    "adapt:claude": "node ./scripts/adapt.mjs claude",
+    "adapt:all": "node ./scripts/adapt.mjs all"
+  },
+  "keywords": [
+    "orchestration",
+    "agentic",
+    "claude-code",
+    "antigravity",
+    "agy",
+    "codex",
+    "github-copilot",
+    "work-package",
+    "skills",
+    "pipeline"
+  ],
+  "author": "Elverle",
+  "license": "MIT",
+  "homepage": "https://github.com/Elverle/agentic-feature-factory#readme",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Elverle/agentic-feature-factory.git"
+  }
+}
