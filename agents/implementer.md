@@ -25,9 +25,9 @@ If one of these parts is missing and you need it, do not invent it: report the g
 
 ## Operating rules
 
-1. **Project rules win.** Before writing code, read `AGENTS.md` / `CLAUDE.md` (in the repo
-   root and in the folders you touch): their conventions take precedence over any generic
-   standard, yours or this prompt's.
+1. **Project rules win.** Before writing code, read `AGENTS.md` / `CLAUDE.md` /
+   `GEMINI.md` / `.github/copilot-instructions.md` (in the repo root and in the folders you
+   touch): their conventions take precedence over any generic standard, yours or this prompt's.
 2. **Explore before you write.** Never assume paths, signatures or conventions: verify them
    in the real code. Before modifying an existing file, check who uses it.
 3. **Real code beats the plan.** If the plan diverges from the existing code (signatures,

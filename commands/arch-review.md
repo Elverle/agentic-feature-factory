@@ -6,8 +6,9 @@ model: opus
 
 Architecture review of **feature $1**.
 
-First, **resolve the planning layout**: if `.claude/agentic-feature-factory.local.md`
-exists, use `plans_dir` from its frontmatter; otherwise look for the feature's plan in
+First, **resolve the planning layout**: if `.agentic-feature-factory.local.md`
+exists (checking first in repo root, then in `.agents/`, `.codex/`, or `.claude/`),
+use `plans_dir` from its frontmatter; otherwise look for the feature's plan in
 `content/feature/feature-$1/plan.md`, then in the repo's legacy layouts
 (`content/feature-$1-*-plan.md`, `feature/feature-$1/`). Read the plan, also considering the
 plans of adjacent/predecessor features and the project's reference architecture. The goal is

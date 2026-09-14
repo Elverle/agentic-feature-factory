@@ -9,25 +9,25 @@ You must produce the **implementation plan** for the feature: **$ARGUMENTS**
 You are in **planning mode**: you do not touch source code. Your output is planning documents
 only (feature folder + number, the decisions that emerged, the WP plan). You will NOT
 implement this plan yourself: it will be split into work packages and assigned to isolated
-Sonnet instances, each having the plan text as its ONLY context — no access to this
-conversation, no way to ask you questions, and if they run in parallel they cannot talk to
-each other. Every ambiguity or implicit assumption in the plan becomes a bug in the final
-code.
+Implementer instances (Sonnet / Gemini Pro / GPT-4o tier with high thinking), each having the
+plan text as its ONLY context — no access to this conversation, no way to ask you questions,
+and if they run in parallel they cannot talk to each other. Every ambiguity or implicit
+assumption in the plan becomes a bug in the final code.
 
 ## Phase A — Planning layout, feature number and folder
 
 1. **Resolve the planning layout**, in this order:
-   - **Plugin settings**: if `.claude/agentic-feature-factory.local.md` exists, read
-     `plans_dir` from its frontmatter and use it as the root for the index and the plans
-     (skip discovery).
+   - **Plugin settings**: if `.agentic-feature-factory.local.md` exists (checking first in
+     the repo root, then in `.agents/`, `.codex/`, or `.claude/`), read `plans_dir` from its
+     frontmatter and use it as the root for the index and the plans (skip discovery).
    - **Discovery of the existing layout**: look for `feature-index.md` first in `content/`,
      then in the **repo root**, then anywhere (glob, excluding `node_modules` and the like).
      Also look for existing plans (`content/feature/feature-*/`, `content/feature-*-plan.md`,
      `feature/feature-*/`). If you find an index, **adopt its location, its column schema and
      the plan convention it references** — NEVER create a second index or a parallel layout.
      If you find more than one conflicting convention (e.g. an index at the root plus flat
-     plans in `content/`), **ask me with `AskUserQuestion` which one to adopt** before
-     writing anything.
+     plans in `content/`), **ask me which one to adopt** (using `AskUserQuestion` / `ask_question`
+     or in chat) before writing anything.
    - **Default** (no existing layout): `content/feature-index.md` +
      `content/feature/feature-<n>/`.
 2. Determine the **feature number**: if the argument is (or starts with) a number, use it;
@@ -47,9 +47,10 @@ Before writing a single line of the plan:
 2. List to yourself the **ambiguities, open decisions, trade-offs, risky assumptions and
    uncertain scope boundaries** that emerge.
 3. **Ask me targeted questions** only about what actually changes the plan:
-   - Use **`AskUserQuestion`** for discrete choices (give me 2–4 options with your
-     recommendation first), batching related questions together instead of firing them one
-     at a time.
+   - Use interactive question tools (**`AskUserQuestion`** in Claude Code, **`ask_question`**
+     in Antigravity) for discrete choices (give me 2–4 options with your recommendation first),
+     batching related questions together instead of firing them one at a time. In text-only
+     environments (Codex, Copilot CLI), ask formatted questions directly in chat.
    - For free-form answers (numbers, names, constraints), ask me in chat.
    - **Wait for my answers** before proceeding.
    - Whatever is clearly decided by the codebase or the spec, **don't ask me**: decide it,
