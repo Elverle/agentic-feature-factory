@@ -1,15 +1,19 @@
 # agentic-feature-factory
 
-Claude Code plugin that packages an agent-driven feature development pipeline:
+Agent-driven feature development pipeline for **Claude Code**, **Google Antigravity**, **AGY CLI**, **OpenAI Codex**, and **GitHub Copilot**:
 
-**plan → architecture review → implement (orchestrated) → code-review → document**
+**brainstorm → plan → architecture review → implement (orchestrated) → code-review → document**
 
 It works on **backend** (Spring Boot + Maven) and **frontend** (React / Next / Vite)
-projects alike: the commands are stack-neutral and adapt the verification gate to the
+projects alike: the pipeline is stack-neutral and adapts the verification gate to the
 project's stack.
 
 - [Requirements](#requirements)
-- [Installation](#installation)
+- [Installation & Multi-Platform Adapters](#installation--multi-platform-adapters)
+  - [Antigravity & AGY CLI](#1-google-antigravity--agy-cli)
+  - [OpenAI Codex](#2-openai-codex)
+  - [GitHub Copilot](#3-github-copilot)
+  - [Claude Code](#4-claude-code)
 - [Quick start: one full cycle](#quick-start-one-full-cycle)
 - [What's inside](#whats-inside)
 - [Planning layout](#planning-layout-settings-discovery-default)
@@ -18,49 +22,108 @@ project's stack.
 
 ## Requirements
 
-- **Claude Code** with plugin/marketplace support.
+- **Supported AI Environments**:
+  - **Claude Code** (CLI)
+  - **Google Antigravity** (IDE / Desktop) or **AGY CLI**
+  - **OpenAI Codex** (CLI with multi-agent feature enabled)
+  - **GitHub Copilot** (VS Code Copilot Chat or Copilot CLI)
+- **Runtime for Adapter CLI**: Node.js 18+, Bun, or Deno (zero dependencies).
 - **Backend projects**: JDK and Maven for the `mvn verify` gate, plus a running **Docker**
   daemon if the project has Testcontainers integration tests.
-- **Frontend projects**: Node.js and the project's package manager (pnpm / yarn / npm — the
+- **Frontend projects**: Node.js and the project's package manager (pnpm / yarn / npm / bun — the
   skill detects which one from the lockfile).
 
-Nothing else is installed: the plugin ships commands, agents and skills, not tooling.
+## Installation & Multi-Platform Adapters
 
-## Installation
+This repository includes a multi-platform adapter (`scripts/adapt.mjs`) runnable with **bun**, **npm**, **pnpm**, or **npx** to install and configure the pipeline across your AI development environments. By default, it installs globally on your machine so you can use the factory in all your repositories.
 
-Run these from a Claude Code session in any repo (backend or frontend) where you want to use
-the pipeline. The `@` syntax is `plugin@marketplace`: this repo is both the **marketplace**
-and the single **plugin** it hosts, so the two names coincide.
+### 1. Google Antigravity & AGY CLI
+
+Installs the pipeline as a global plugin in `~/.gemini/config/plugins/agentic-feature-factory/`:
+
+```bash
+# Using Bun:
+bun run adapt antigravity
+
+# Using npm:
+npm run adapt antigravity
+```
+
+The skills (`feature-plan`, `feature-dev`, `arch-review`, `feature-docs`, `spring-maven-build`, `node-frontend-build`) are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
+
+### 2. OpenAI Codex
+
+Installs agent role files to `~/.codex/agents/` and prompt templates to `~/.codex/prompts/`:
+
+```bash
+bun run adapt codex
+# or: npm run adapt codex
+```
+
+> **Note**: Ensure `~/.codex/config.toml` has multi-agent enabled:
+> ```toml
+> [features]
+> multi_agent = true
+> ```
+
+### 3. GitHub Copilot
+
+Installs Copilot prompt files (`.prompt.md`) and project instructions:
+
+```bash
+# Global prompts:
+bun run adapt copilot
+
+# Or install directly into current project's .github/ directory:
+bun run adapt copilot --scope project
+```
+
+In VS Code Copilot Chat or Copilot CLI, type `/` to access `/feature-plan`, `/feature-dev`, `/arch-review`, and `/feature-docs`.
+
+### 4. Claude Code
+
+Install directly via the Claude Code marketplace or use the adapter:
 
 **From GitHub**:
-
 ```
 /plugin marketplace add Elverle/agentic-feature-factory
 /plugin install agentic-feature-factory@agentic-feature-factory
 ```
 
-**From a local clone** (when developing the plugin itself):
-
-```
-git clone https://github.com/Elverle/agentic-feature-factory
-/plugin marketplace add /absolute/path/to/agentic-feature-factory
-/plugin install agentic-feature-factory@agentic-feature-factory
+**Via Adapter**:
+```bash
+bun run adapt claude
+# or: npm run adapt claude
 ```
 
-Then restart the Claude Code session so the commands, agents and skills are loaded. To pull
-in later changes: `/plugin marketplace update agentic-feature-factory`.
+### All Platforms at Once
 
-> If `source: "./"` in `marketplace.json` doesn't resolve in your Claude Code version, add
-> the folder directly as a development plugin via `/plugin` instead.
+```bash
+bun run adapt all
+# or: npm run adapt all
+```
 
-## Quick start: one full cycle
+### Quick start: one full cycle
 
 Let's develop **feature 5** in a freshly cloned repo with no planning layout yet.
 
-### 1. Planning — `/feature-plan 5 Portfolio PDF export`
+### 0. Brainstorming (Optional) — `/feature-brainstorm 5 Portfolio PDF export`
 
-The command **first analyzes** the codebase and the spec, then asks only the questions that
-actually change the plan:
+If you start from a raw idea or need to evaluate approaches, the command explores intent,
+proposes 2–3 architectural alternatives with trade-offs, trims out-of-scope bloat (YAGNI),
+and writes a validated specification:
+
+```
+content/
+└── feature/
+    └── feature-5/
+        └── spec.md           # functional requirements, architectural design, YAGNI out-of-scope
+```
+
+### 1. Planning — `/feature-plan 5 Portfolio PDF export [path/to/spec.md]`
+
+The command **first analyzes** the codebase and the spec (e.g. `spec.md`), then asks only the
+questions that actually change the plan:
 
 ```
 [AskUserQuestion] How do we generate the PDF?
@@ -76,6 +139,7 @@ content/
 ├── feature-index.md          # | 5 | Portfolio PDF export | planned | 2026-07-07 | plan |
 └── feature/
     └── feature-5/
+        ├── spec.md           # (if generated via /feature-brainstorm)
         ├── requirements.md   # decisions taken (PDF: server-side library; no zip; …)
         └── plan.md           # work packages WP5.1…WP5.n with contracts + dependency map
 ```
@@ -93,6 +157,7 @@ content/
 ├── feature-index.md
 └── feature/
     └── feature-5/
+        ├── spec.md
         ├── requirements.md
         ├── plan.md
         └── architecture-review-2026-07-07.md   # P1 → inside WP5.2 · P2 → before WP5.1 · …
@@ -103,40 +168,37 @@ root instead.
 
 ### 3. Development — `/feature-dev 5`
 
-The Opus orchestrator starts from `content/feature/feature-5/plan.md` plus the review, and:
+The orchestrator starts from `content/feature/feature-5/plan.md` plus the review, and:
 
 1. shows you the **waves** (parallel and sequential WPs) and starts;
-2. for each wave dispatches the **Implementers (Sonnet)**, then runs the **gate**
+2. for each wave dispatches the **Implementers**, then runs the **gate**
    (`mvn verify` or the frontend build) — it must be green before advancing;
 3. once all WPs are complete, **stops and asks for confirmation** before the review;
-4. on confirmation runs **`/code-review high`** and leaves you the findings: **you handle
-   triage and fixes**;
+4. on confirmation runs **code-review** (`/code-review high` in Claude Code, or in-session review)
+   and leaves you the findings: **you handle triage and fixes**;
 5. when you confirm the findings are handled, **documents** the feature in the project wiki
    (via `feature-documenter`) and closes, updating `feature-index.md` → `done`.
-
-The code-review uses the **built-in** `/code-review high` skill, invoked in-session — no
-dedicated review agent is needed. The `ultra` variant (cloud, metered) stays manual.
 
 ### The flow at a glance
 
 ```
-/feature-plan 5   →   /arch-review 5   →   /feature-dev 5
-  analyzes + asks       reviews and assigns    Opus orchestrates the Implementers (Sonnet)
-  → content/feature/    fixes to WPs           → verification gate (BE mvn verify / FE build)
-     feature-5/plan.md                         → CONFIRM → /code-review high (manual fixes)
-                                               → wiki documentation (feature-documenter)
+/feature-brainstorm 5  →  /feature-plan 5  →  /arch-review 5  →  /feature-dev 5
+  explores intent +         analyzes + asks       reviews and          orchestrates Implementers
+  approaches & YAGNI        → plan.md             assigns fixes        → gate → CONFIRM → review
+  → spec.md                                                            → wiki documentation
 ```
 
 ## What's inside
 
 | Component | Type | What it does |
 | --- | --- | --- |
-| `/feature-plan <n\|description> [spec]` | command (Opus) | Analyzes codebase + requirements, **asks you questions**, then produces the work-package plan; resolves the planning layout and handles numbering and feature folders |
-| `/arch-review [n]` | command (Opus) | Architecture review of the codebase against a planned feature (or the whole planned set) |
-| `/feature-dev <n> [plan-path]` | command (Opus) | Orchestrates the Implementers (Sonnet), verification gates, confirmation, `/code-review high` and wiki documentation |
-| `/feature-docs [scope]` | command (Opus) | Documents in wiki format via `feature-documenter` (feature / area / `lint`), standalone |
-| `implementer` | agent (Sonnet) | Executes ONE work package test-driven, within the WP's file boundaries; dispatched in parallel by `/feature-dev` |
-| `feature-documenter` | agent (Sonnet) | Updates the project wiki adopting the **project's** conventions (AGENTS.md/CLAUDE.md → existing wiki format → default structure) |
+| `/feature-brainstorm <n\|description>` | command / skill | Explores user intent and technical approaches through proactive questions; cuts unnecessary scope (YAGNI) and produces a validated specification (`spec.md`) |
+| `/feature-plan <n\|description> [spec]` | command / skill | Analyzes codebase + requirements, **asks you questions**, then produces the work-package plan; resolves the planning layout and handles numbering and feature folders |
+| `/arch-review [n]` | command / skill | Architecture review of the codebase against a planned feature (or the whole planned set) |
+| `/feature-dev <n> [plan-path]` | command / skill | Orchestrates Implementer subagents, verification gates, confirmation, final code-review and wiki documentation |
+| `/feature-docs [scope]` | command / skill | Documents in wiki format via `feature-documenter` (feature / area / `lint`), standalone |
+| `implementer` | agent | Executes ONE work package test-driven, within the WP's file boundaries; dispatched in parallel by `/feature-dev` |
+| `feature-documenter` | agent | Updates the project wiki adopting the **project's** conventions (AGENTS.md/CLAUDE.md/GEMINI.md → existing wiki format → default structure) |
 | `spring-maven-build` | skill | Backend build/test gate (Docker for Testcontainers; `mvn verify`; formatter; Flyway vs Liquibase detection; multi-module) |
 | `node-frontend-build` | skill | Frontend build/test gate (detects pnpm/yarn/npm; lint + typecheck + test + build) |
 
@@ -148,8 +210,8 @@ for the wiki `lint` mode.
 
 The commands resolve where the index and the plans live, in this order:
 
-**1. Plugin settings** — optional file `.claude/agentic-feature-factory.local.md` in the
-target repo:
+**1. Plugin settings** — optional file `.agentic-feature-factory.local.md` (in the repo root,
+or under `.agents/`, `.codex/`, or `.claude/`):
 
 ```markdown
 ---
@@ -179,10 +241,9 @@ references** — they never create a second index. If multiple conflicting conve
 
 ## Configuration
 
-- **Per-repo settings**: `.claude/agentic-feature-factory.local.md` with `plans_dir` and
+- **Per-repo settings**: `.agentic-feature-factory.local.md` with `plans_dir` and
   `wiki_dir` in the frontmatter (see above).
-- **Orchestrator and agent models**: the `model:` key in the commands' (`commands/*.md`) and
-  agents' (`agents/*.md`) frontmatter.
+- **Orchestrator and agent models**: configurable via environment model selection (Claude Code, Antigravity, Codex, Copilot).
 - **Other stacks**: the build skills are stack-scoped — `spring-maven-build` only activates on
   Spring/Maven, `node-frontend-build` only on Node projects. For Gradle, Python, Go and the
   like, add an analogous skill to the project and `/feature-dev` will use it as the gate.
