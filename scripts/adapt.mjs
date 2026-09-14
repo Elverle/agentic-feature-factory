@@ -20,6 +20,12 @@ const REPO_ROOT = path.resolve(__dirname, '..');
 // Command metadata
 const COMMANDS = [
   {
+    name: 'feature-brainstorm',
+    description: 'Explores user intent, requirements and technical approaches through proactive questions, producing a validated feature spec (spec.md). Triggers on /feature-brainstorm or when brainstorming a feature.',
+    argumentHint: '<feature-number or description>',
+    source: 'commands/feature-brainstorm.md',
+  },
+  {
     name: 'feature-plan',
     description: 'Analyzes requirements + codebase and asks clarifying questions, then produces a work-package plan. Handles feature numbering and folders. Triggers on /feature-plan or when asked to plan a feature.',
     argumentHint: '<feature-number or description> [spec/master-plan path]',
@@ -250,10 +256,11 @@ ${body.trim()}
   let agentsRuleContent = `# Agentic Feature Factory — Pipeline Rules & Subagents
 
 This project defines the agentic feature development pipeline:
-1. **Planning**: Use skill \`feature-plan\` to analyze requirements and produce work packages.
-2. **Architecture Review**: Use skill \`arch-review\` to assess feasibility and graft pain-point fixes.
-3. **Development**: Use skill \`feature-dev\` to orchestrate Implementer subagents and verify gates.
-4. **Documentation**: Use skill \`feature-docs\` to document changes into the project wiki.
+1. **Brainstorming**: Use skill \`feature-brainstorm\` to explore intent, technical approaches and produce a validated feature specification (\`spec.md\`).
+2. **Planning**: Use skill \`feature-plan\` to analyze requirements and produce work packages.
+3. **Architecture Review**: Use skill \`arch-review\` to assess feasibility and graft pain-point fixes.
+4. **Development**: Use skill \`feature-dev\` to orchestrate Implementer subagents and verify gates.
+5. **Documentation**: Use skill \`feature-docs\` to document changes into the project wiki.
 
 ## Specialized Subagents
 
@@ -352,6 +359,7 @@ ${body.trim()}
   const instructionsContent = `# Agentic Feature Factory — Pipeline Guidelines
 
 When developing features in this project, adhere to the agentic feature development pipeline:
+- **Phase 0 (Brainstorming)**: Run \`/feature-brainstorm\` to clarify intent, explore approaches, and produce a feature specification (\`spec.md\`).
 - **Phase 1 (Planning)**: Run \`/feature-plan\` to analyze requirements and generate file-disjoint work packages.
 - **Phase 2 (Architecture Review)**: Run \`/arch-review\` to assess architectural debt and graft fixes into work packages.
 - **Phase 3 (Execution)**: Run \`/feature-dev\` to implement work packages test-driven and verify build gates.
