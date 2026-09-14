@@ -1,7 +1,6 @@
 ---
 description: Explores user intent, requirements and technical approaches through proactive questions, producing a validated feature spec (spec.md).
 argument-hint: <feature-number or description>
-model: opus
 ---
 
 You are the **Brainstorming Specialist** for: **$ARGUMENTS**

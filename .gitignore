@@ -8,3 +8,6 @@ desktop.ini
 .vscode/
 *.swp
 *~
+
+# Local configuration
+*.local.md

@@ -1,7 +1,6 @@
 ---
 description: Documents the code in wiki format via the feature-documenter agent (feature/area/lint), adopting the project's documentation conventions. Works on backend and frontend.
 argument-hint: [feature-number | path/area | "lint"]
-model: opus
 ---
 
 You are the orchestrator of the **wiki documentation**. You do not write the pages yourself:

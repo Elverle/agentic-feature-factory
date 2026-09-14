@@ -217,6 +217,21 @@ or under `.agents/`, `.codex/`, or `.claude/`):
 ---
 plans_dir: content        # folder containing feature-index.md and the plans
 wiki_dir: docs/wiki       # optional: where the project wiki lives
+
+# Optional: configure model tiers per platform
+models:
+  codex:
+    orchestrator: gpt5.6-sol
+    implementer: gpt5.6-luna
+  claude:
+    orchestrator: opus
+    implementer: sonnet
+  antigravity:
+    orchestrator: pro
+    implementer: inherit
+  copilot:
+    orchestrator: gpt-4o
+    implementer: gpt-4o
 ---
 ```
 
@@ -241,9 +256,14 @@ references** — they never create a second index. If multiple conflicting conve
 
 ## Configuration
 
-- **Per-repo settings**: `.agentic-feature-factory.local.md` with `plans_dir` and
-  `wiki_dir` in the frontmatter (see above).
-- **Orchestrator and agent models**: configurable via environment model selection (Claude Code, Antigravity, Codex, Copilot).
+- **Per-repo settings**: `.agentic-feature-factory.local.md` with `plans_dir`, `wiki_dir`,
+  and platform `models` in the frontmatter (see example in `.agentic-feature-factory.local.example.md`).
+- **Configurable model tiers**:
+  - **Codex**: Orchestrator defaults to `gpt5.6-sol`, Implementer to `gpt5.6-luna`.
+  - **Claude Code**: Orchestrator defaults to `opus`, Implementer to `sonnet`.
+  - **Antigravity & AGY CLI**: Orchestrator defaults to `pro`, Implementer to `inherit`.
+  - **GitHub Copilot**: Orchestrator defaults to `gpt-4o`, Implementer to `gpt-4o`.
+  Models can be customized in `.agentic-feature-factory.local.md` or overridden on the command line via `--orchestrator <model>` and `--implementer <model>`.
 - **Other stacks**: the build skills are stack-scoped — `spring-maven-build` only activates on
   Spring/Maven, `node-frontend-build` only on Node projects. For Gradle, Python, Go and the
   like, add an analogous skill to the project and `/feature-dev` will use it as the gate.
@@ -254,10 +274,10 @@ references** — they never create a second index. If multiple conflicting conve
   precedence over the plugin's skills and agents — for build commands, code style and
   documentation format alike. The plugin's defaults only fill what the project doesn't
   specify.
-- **Opus orchestrates, Sonnet works.** `/feature-dev` and `/feature-docs` run on Opus
-  (`model: opus` in the frontmatter); they dispatch `implementer` and `feature-documenter`
-  with `model: sonnet` (also set in the bundled agents' frontmatter) and a *high thinking*
-  instruction.
+- **Orchestrator coordinates, Implementers build.** The orchestrator runs on a high-reasoning tier
+  (e.g., Opus, gpt5.6-sol, Pro), planning waves, reviewing gates, and dispatching subagents.
+  Implementers run on fast, precise coding models (e.g., Sonnet, gpt5.6-luna, inherit) with deep reasoning
+  (*high thinking*) enabled, keeping execution efficient and cost-effective.
 - **Stack-neutral.** `/feature-dev`'s verification gate adapts: Spring/Maven backend
   (`mvn verify`, Docker for Testcontainers ITs) or Node frontend (lint + typecheck + test +
   build), driven by the two build skills.

@@ -90,6 +90,8 @@ Options:
   --scope <global|project>   Installation scope (default: global)
   --mode <copy|link>         File deployment mode (default: copy)
   --dest <path>              Override target installation directory
+  --orchestrator <model>     Override orchestrator model for target
+  --implementer <model>      Override implementer model for target
   --dry-run                  Simulate actions without writing files
   --help, -h                 Show this help message
 
@@ -97,6 +99,7 @@ Examples:
   bun run adapt antigravity                  # Install globally for Antigravity & AGY CLI
   npm run adapt codex                        # Install globally for Codex
   bun run adapt copilot --scope project      # Generate .github/ in current project
+  node scripts/adapt.mjs codex --orchestrator gpt5.6-sol --implementer gpt5.6-luna
   node scripts/adapt.mjs all --dry-run       # Preview all adapter operations
 `);
 }
@@ -108,6 +111,8 @@ function parseArgs() {
     scope: 'global',
     mode: 'copy',
     dest: null,
+    orchestrator: null,
+    implementer: null,
     dryRun: false,
   };
 
@@ -121,6 +126,10 @@ function parseArgs() {
       options.mode = args[++i].toLowerCase();
     } else if (arg === '--dest' && args[i + 1]) {
       options.dest = path.resolve(args[++i]);
+    } else if (arg === '--orchestrator' && args[i + 1]) {
+      options.orchestrator = args[++i];
+    } else if (arg === '--implementer' && args[i + 1]) {
+      options.implementer = args[++i];
     } else if (arg === '--dry-run') {
       options.dryRun = true;
     } else if (!arg.startsWith('-') && !target) {
@@ -200,11 +209,138 @@ function parseFrontmatter(content) {
   return { frontmatter, body: match[2] };
 }
 
+const DEFAULT_MODELS = {
+  codex: { orchestrator: 'gpt5.6-sol', implementer: 'gpt5.6-luna' },
+  claude: { orchestrator: 'opus', implementer: 'sonnet' },
+  antigravity: { orchestrator: 'pro', implementer: 'inherit' },
+  agy: { orchestrator: 'pro', implementer: 'inherit' },
+  gemini: { orchestrator: 'pro', implementer: 'inherit' },
+  copilot: { orchestrator: 'gpt-4o', implementer: 'gpt-4o' },
+};
+
+/**
+ * Basic zero-dependency YAML parser for nested objects in frontmatter.
+ */
+function parseYaml(yamlString) {
+  const lines = yamlString.split(/\r?\n/);
+  const root = {};
+  const stack = [{ indent: -1, obj: root }];
+
+  for (const rawLine of lines) {
+    if (!rawLine.trim() || rawLine.trim().startsWith('#')) continue;
+    const indent = rawLine.search(/\S/);
+    const line = rawLine.trim();
+    const colonIdx = line.indexOf(':');
+    if (colonIdx === -1) continue;
+
+    const key = line.slice(0, colonIdx).trim();
+    let val = line.slice(colonIdx + 1).trim();
+
+    while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
+      stack.pop();
+    }
+    const current = stack[stack.length - 1].obj;
+
+    if (val === '') {
+      current[key] = {};
+      stack.push({ indent, obj: current[key] });
+    } else {
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      current[key] = val;
+    }
+  }
+  return root;
+}
+
+/**
+ * Searches for .agentic-feature-factory.local.md across standard locations.
+ */
+function loadLocalConfig() {
+  const candidates = [
+    path.join(process.cwd(), '.agentic-feature-factory.local.md'),
+    path.join(REPO_ROOT, '.agentic-feature-factory.local.md'),
+    path.join(process.cwd(), '.agents', '.agentic-feature-factory.local.md'),
+    path.join(process.cwd(), '.codex', '.agentic-feature-factory.local.md'),
+    path.join(process.cwd(), '.claude', '.agentic-feature-factory.local.md'),
+    path.join(os.homedir(), '.agentic-feature-factory.local.md'),
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      try {
+        const raw = fs.readFileSync(candidate, 'utf8');
+        const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+        if (match) {
+          console.log(`ℹ️  Loaded local configuration from: ${candidate}`);
+          return parseYaml(match[1]);
+        }
+      } catch (e) {
+        console.warn(`! Failed to parse local config at ${candidate}: ${e.message}`);
+      }
+    }
+  }
+  return {};
+}
+
+/**
+ * Resolves orchestrator and implementer models for a platform.
+ * Precedence: CLI args > .local.md platform config > .local.md global config > defaults.
+ */
+function resolvePlatformModels(platform, config, options = {}) {
+  const normPlatform = (platform === 'claude-code' ? 'claude' : platform === 'github-copilot' ? 'copilot' : platform).toLowerCase();
+  const defaults = DEFAULT_MODELS[normPlatform] || { orchestrator: 'inherit', implementer: 'inherit' };
+
+  const modelsConf = config?.models || {};
+  const platConf = modelsConf[normPlatform] || modelsConf[platform] || {};
+
+  const orchestrator = options.orchestrator 
+    || platConf.orchestrator 
+    || modelsConf.orchestrator 
+    || config?.orchestrator_model 
+    || defaults.orchestrator;
+
+  const implementer = options.implementer 
+    || platConf.implementer 
+    || modelsConf.implementer 
+    || config?.implementer_model 
+    || defaults.implementer;
+
+  return { orchestrator, implementer };
+}
+
+/**
+ * Injects or updates a frontmatter field `model: <modelName>` in markdown content.
+ */
+function injectFrontmatterModel(content, modelName) {
+  if (!modelName) return content;
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+  if (!match) {
+    return `---\nmodel: ${modelName}\n---\n\n${content}`;
+  }
+  const fmLines = match[1].split(/\r?\n/);
+  let replaced = false;
+  const newFmLines = fmLines.map(line => {
+    if (line.trim().startsWith('model:')) {
+      replaced = true;
+      return `model: ${modelName}`;
+    }
+    return line;
+  });
+  if (!replaced) {
+    newFmLines.push(`model: ${modelName}`);
+  }
+  return `---\n${newFmLines.join('\n')}\n---\n${match[2]}`;
+}
+
 // ==========================================
 // TARGET: Antigravity / AGY CLI
 // ==========================================
-function adaptAntigravity(options) {
+function adaptAntigravity(options, config) {
+  const models = resolvePlatformModels('antigravity', config, options);
   console.log(`\n📦 Adapting for Antigravity & AGY CLI (Scope: ${options.scope})...`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
   const targetRoot = options.dest || (
     options.scope === 'global'
       ? path.join(os.homedir(), '.gemini', 'config', 'plugins', 'agentic-feature-factory')
@@ -269,7 +405,8 @@ The orchestrator dispatches the following specialized subagents via \`invoke_sub
 `;
 
   for (const agent of AGENTS) {
-    const agentSource = readSource(agent.source);
+    const raw = readSource(agent.source);
+    const agentSource = injectFrontmatterModel(raw, models.implementer);
     agentsRuleContent += `### Subagent: \`${agent.name}\`\n\n${agentSource}\n\n---\n\n`;
   }
 
@@ -281,8 +418,10 @@ The orchestrator dispatches the following specialized subagents via \`invoke_sub
 // ==========================================
 // TARGET: OpenAI Codex CLI
 // ==========================================
-function adaptCodex(options) {
+function adaptCodex(options, config) {
+  const models = resolvePlatformModels('codex', config, options);
   console.log(`\n📦 Adapting for OpenAI Codex CLI (Scope: ${options.scope})...`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
   const targetRoot = options.dest || (
     options.scope === 'global'
       ? path.join(os.homedir(), '.codex')
@@ -296,7 +435,9 @@ function adaptCodex(options) {
   ensureDir(agentsDir, options.dryRun);
   for (const agent of AGENTS) {
     const destPath = path.join(agentsDir, `${agent.name}.md`);
-    copyOrLink(path.join(REPO_ROOT, agent.source), destPath, options.mode, options.dryRun);
+    const raw = readSource(agent.source);
+    const transformed = injectFrontmatterModel(raw, models.implementer);
+    writeFileSafe(destPath, transformed, options.dryRun);
   }
 
   // 2. Install prompt templates in prompts/
@@ -304,7 +445,9 @@ function adaptCodex(options) {
   ensureDir(promptsDir, options.dryRun);
   for (const cmd of COMMANDS) {
     const destPath = path.join(promptsDir, `${cmd.name}.md`);
-    copyOrLink(path.join(REPO_ROOT, cmd.source), destPath, options.mode, options.dryRun);
+    const raw = readSource(cmd.source);
+    const transformed = injectFrontmatterModel(raw, models.orchestrator);
+    writeFileSafe(destPath, transformed, options.dryRun);
   }
 
   // 3. Inform about multi-agent configuration in config.toml
@@ -319,10 +462,11 @@ function adaptCodex(options) {
 // ==========================================
 // TARGET: GitHub Copilot
 // ==========================================
-function adaptCopilot(options) {
+function adaptCopilot(options, config) {
+  const models = resolvePlatformModels('copilot', config, options);
   console.log(`\n📦 Adapting for GitHub Copilot (Scope: ${options.scope})...`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
   
-  // For Copilot, default to .github in CWD if project, or VS Code global prompts directory if global
   let promptsDir;
   let instructionsPath;
 
@@ -331,7 +475,6 @@ function adaptCopilot(options) {
     promptsDir = path.join(root, '.github', 'prompts');
     instructionsPath = path.join(root, '.github', 'copilot-instructions.md');
   } else {
-    // Global Copilot prompts in user home or VS Code user config
     const globalCopilotDir = path.join(os.homedir(), '.copilot', 'prompts');
     promptsDir = options.dest || globalCopilotDir;
     instructionsPath = path.join(os.homedir(), '.copilot', 'instructions.md');
@@ -347,6 +490,7 @@ function adaptCopilot(options) {
     const promptContent = `---
 name: ${cmd.name}
 description: "${cmd.description.replace(/"/g, '\\"')}"
+model: ${models.orchestrator}
 ---
 
 ${body.trim()}
@@ -377,8 +521,10 @@ When developing features in this project, adhere to the agentic feature developm
 // ==========================================
 // TARGET: Claude Code
 // ==========================================
-function adaptClaude(options) {
+function adaptClaude(options, config) {
+  const models = resolvePlatformModels('claude', config, options);
   console.log(`\n📦 Validating/Adapting for Claude Code (Scope: ${options.scope})...`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
   const targetRoot = options.dest || (
     options.scope === 'global'
       ? path.join(os.homedir(), '.claude', 'plugins', 'agentic-feature-factory')
@@ -387,18 +533,21 @@ function adaptClaude(options) {
 
   if (options.scope === 'global') {
     ensureDir(targetRoot, options.dryRun);
-    // Copy/link plugin.json, marketplace.json, commands, agents, skills
     copyOrLink(path.join(REPO_ROOT, '.claude-plugin', 'plugin.json'), path.join(targetRoot, 'plugin.json'), options.mode, options.dryRun);
     copyOrLink(path.join(REPO_ROOT, '.claude-plugin', 'marketplace.json'), path.join(targetRoot, 'marketplace.json'), options.mode, options.dryRun);
     
     // Copy commands, agents, skills
     for (const cmd of COMMANDS) {
       const dest = path.join(targetRoot, cmd.source);
-      copyOrLink(path.join(REPO_ROOT, cmd.source), dest, options.mode, options.dryRun);
+      const raw = readSource(cmd.source);
+      const transformed = injectFrontmatterModel(raw, models.orchestrator);
+      writeFileSafe(dest, transformed, options.dryRun);
     }
     for (const agent of AGENTS) {
       const dest = path.join(targetRoot, agent.source);
-      copyOrLink(path.join(REPO_ROOT, agent.source), dest, options.mode, options.dryRun);
+      const raw = readSource(agent.source);
+      const transformed = injectFrontmatterModel(raw, models.implementer);
+      writeFileSafe(dest, transformed, options.dryRun);
     }
     for (const skill of BUILD_SKILLS) {
       const dest = path.join(targetRoot, skill.source);
@@ -421,6 +570,8 @@ function main() {
     process.exit(options.help ? 0 : 1);
   }
 
+  const config = loadLocalConfig();
+
   console.log(`\n🚀 agentic-feature-factory adapter`);
   console.log(`----------------------------------`);
   console.log(`Target:   ${target}`);
@@ -432,24 +583,24 @@ function main() {
     case 'antigravity':
     case 'agy':
     case 'gemini':
-      adaptAntigravity(options);
+      adaptAntigravity(options, config);
       break;
     case 'codex':
-      adaptCodex(options);
+      adaptCodex(options, config);
       break;
     case 'copilot':
     case 'github-copilot':
-      adaptCopilot(options);
+      adaptCopilot(options, config);
       break;
     case 'claude':
     case 'claude-code':
-      adaptClaude(options);
+      adaptClaude(options, config);
       break;
     case 'all':
-      adaptAntigravity(options);
-      adaptCodex(options);
-      adaptCopilot(options);
-      adaptClaude(options);
+      adaptAntigravity(options, config);
+      adaptCodex(options, config);
+      adaptCopilot(options, config);
+      adaptClaude(options, config);
       break;
     default:
       console.error(`\n❌ Unknown target: "${target}"`);
@@ -461,3 +612,4 @@ function main() {
 }
 
 main();
+

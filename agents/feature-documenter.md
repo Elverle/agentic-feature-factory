@@ -2,7 +2,6 @@
 name: feature-documenter
 description: "Documenter of the /feature-dev and /feature-docs pipeline. Updates the project's wiki/technical documentation for a feature or a code area, adopting the project's conventions (AGENTS.md/CLAUDE.md and the existing wiki format) BEFORE its own. Includes a lint mode for wiki health checks."
 tools: Read, Write, Edit, Bash, PowerShell, Glob, Grep
-model: sonnet
 ---
 
 # Feature Documenter — project wiki, project conventions

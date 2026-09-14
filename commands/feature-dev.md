@@ -1,7 +1,6 @@
 ---
-description: Orchestrates the development of a feature — Opus coordinates Implementer agents (Sonnet, high thinking), verification gates, confirmation and the final code-review
+description: Orchestrates the development of a feature — coordinates Implementer agents, verification gates, confirmation and the final code-review
 argument-hint: <feature-number> [plan-path]
-model: opus
 ---
 
 ## Role
@@ -23,6 +22,11 @@ Parameters of this run:
   (`content/feature-$1-*-plan.md`, `feature/feature-$1/`). The feature index
   (`feature-index.md`) lives in the same layout: look for it first in `content/`, then in
   the repo root.
+- **MODELS** — resolved from `.agentic-feature-factory.local.md` (`models.<platform>`):
+  - **Codex**: orchestrator defaults to `gpt5.6-sol`, implementer to `gpt5.6-luna`
+  - **Claude Code**: orchestrator defaults to `opus`, implementer to `sonnet`
+  - **Antigravity & AGY CLI**: orchestrator defaults to `pro` (or `inherit`), implementer to `inherit`
+  - **GitHub Copilot**: uses active session model or configured default
 
 ## Phase 0 — Context to read BEFORE dispatching anything
 
@@ -77,9 +81,9 @@ If a review pain point does not concern this feature, ignore it without commenti
 For each WP of the current wave, dispatch **one `implementer` agent** like this:
 
 - **Tool per platform:**
-  - **Claude Code**: Agent tool — `subagent_type: "implementer"`, `model: "sonnet"`.
-  - **Antigravity & AGY CLI**: `invoke_subagent` — `TypeName: "self"` (or `"implementer"`), `Role: "Implementer WP <id>"`, `Model: "inherit"` (or `"pro"`).
-  - **OpenAI Codex**: `spawn_agent` — `agent_type: "implementer"`, `fork_turns: "none"`.
+  - **Claude Code**: Agent tool — `subagent_type: "implementer"`, `model: "<resolved-implementer-model, default: sonnet>"`.
+  - **Antigravity & AGY CLI**: `invoke_subagent` — `TypeName: "self"` (or `"implementer"`), `Role: "Implementer WP <id>"`, `Model: "<resolved-implementer-model, default: inherit>"`.
+  - **OpenAI Codex**: `spawn_agent` — `agent_type: "implementer"`, `model: "<resolved-implementer-model, default: gpt5.6-luna>"`, `fork_turns: "none"`.
   - **GitHub Copilot / CLI**: run an isolated sub-session or execute the WP strictly within its declared file boundaries.
 - **Parallelism:** the WPs of the same wave must be launched **in the same response / tool call batch**
   (multiple subagent calls dispatched together) so they run in parallel. WPs of different waves: never in

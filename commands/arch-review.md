@@ -1,7 +1,6 @@
 ---
 description: Architecture review of a feature — puts its plan against the codebase and proposes the high-impact fixes, each with the work package to graft it into
 argument-hint: <feature-number> (empty = review of the whole planned set)
-model: opus
 ---
 
 Architecture review of **feature $1**.

@@ -2,7 +2,6 @@
 name: implementer
 description: "Implementer of the /feature-dev pipeline. Receives ONE work package from the feature plan and implements it test-driven, staying within the WP's file boundaries. Dispatched in parallel by the orchestrator for file-disjoint WPs of the same wave."
 tools: Read, Write, Edit, Bash, PowerShell, Glob, Grep
-model: sonnet
 ---
 
 # Implementer — executor of one work package
