@@ -351,9 +351,15 @@ function adaptAntigravity(options, config) {
   ensureDir(targetRoot, options.dryRun);
 
   // 1. Write plugin.json manifest
+  let pkgVersion = "1.3.0";
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
+    if (pkg.version) pkgVersion = pkg.version;
+  } catch {}
+
   const pluginManifest = {
     name: "agentic-feature-factory",
-    version: "1.2.0",
+    version: pkgVersion,
     description: "Agent-driven feature development pipeline: work-package planning, architecture review, multi-agent orchestration, code-review and wiki documentation.",
     author: { name: "Elverle" },
     homepage: "https://github.com/Elverle/agentic-feature-factory#readme"
