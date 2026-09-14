@@ -133,6 +133,7 @@ function parseArgs() {
     } else if (arg === '--dry-run') {
       options.dryRun = true;
     } else if (!arg.startsWith('-') && !target) {
+      if (arg.toLowerCase() === 'adapt') continue;
       target = arg.toLowerCase();
     }
   }

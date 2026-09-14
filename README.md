@@ -10,10 +10,12 @@ project's stack.
 
 - [Requirements](#requirements)
 - [Installation & Multi-Platform Adapters](#installation--multi-platform-adapters)
+  - [Step 0: Get the Repository](#step-0-get-the-repository)
   - [Antigravity & AGY CLI](#1-google-antigravity--agy-cli)
   - [OpenAI Codex](#2-openai-codex)
   - [GitHub Copilot](#3-github-copilot)
   - [Claude Code](#4-claude-code)
+  - [All Platforms at Once](#all-platforms-at-once)
 - [Quick start: one full cycle](#quick-start-one-full-cycle)
 - [What's inside](#whats-inside)
 - [Planning layout](#planning-layout-settings-discovery-default)
@@ -35,7 +37,40 @@ project's stack.
 
 ## Installation & Multi-Platform Adapters
 
-This repository includes a multi-platform adapter (`scripts/adapt.mjs`) runnable with **bun**, **npm**, **pnpm**, or **npx** to install and configure the pipeline across your AI development environments. By default, it installs globally on your machine so you can use the factory in all your repositories.
+### Step 0: Get the Repository
+
+Before running the adapters, obtain the repository or run the adapter CLI directly. Choose the method that best fits your workflow:
+
+#### Option A: Clone locally (Recommended)
+```bash
+git clone https://github.com/Elverle/agentic-feature-factory.git
+cd agentic-feature-factory
+```
+*(No `npm install` required — the adapter engine uses Node/Bun built-ins with zero external dependencies!)*
+
+#### Option B: Direct execution via `npx` / `bunx`
+Run the adapter directly without cloning:
+```bash
+npx github:Elverle/agentic-feature-factory <target>
+# or using bunx:
+bunx --bun github:Elverle/agentic-feature-factory <target>
+```
+
+#### Option C: Global CLI installation
+Install the `aff` (Agentic Feature Factory) command globally:
+```bash
+npm install -g github:Elverle/agentic-feature-factory
+# or with bun:
+bun add -g github:Elverle/agentic-feature-factory
+
+aff <target>
+```
+
+---
+
+### Platform-Specific Setup
+
+Run the adapter for your target platform (by default, it installs globally on your machine so you can use the factory across all your projects):
 
 ### 1. Google Antigravity & AGY CLI
 
