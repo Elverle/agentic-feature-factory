@@ -40,12 +40,17 @@ in Antigravity, or `spawn_agent` in Codex) with a prompt that includes:
    Never impose the default format on a wiki that uses a different one.
 4. The constraint to **act non-destructively**: read before rewriting, prefer updating over
    recreating, report contradictions instead of overwriting them.
-5. The request to **close with the report** defined in its body (pages created/updated,
-   conventions adopted, contradictions/gaps).
+5. For the **feature** and **area** modes: the instruction to also check the **project
+   README** and update it if the work changed something user-facing (a new command/script, a
+   new configuration or env var, a new endpoint, a changed setup step) — non-destructively and
+   in the README's existing style; if nothing user-facing changed, leave it alone and say so.
+6. The request to **close with the report** defined in its body (pages created/updated, README
+   updated or not needed, conventions adopted, contradictions/gaps).
 
 ## Step 3 — Summary to the user
 
-When the agent returns, present me compactly: pages created/updated (with paths), the
+When the agent returns, present me compactly: pages created/updated (with paths), whether the
+README was updated (and which sections) or why it was not needed, the
 conventions it adopted and where it derived them from, any contradictions/gaps, and the
 recommended next steps (e.g. "the topic page for the auth system is missing"). Do not commit
 the wiki unless I explicitly ask.

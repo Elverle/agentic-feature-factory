@@ -1,5 +1,5 @@
 ---
-description: Orchestrates the development of a feature — coordinates Implementer agents, verification gates, confirmation and the final code-review
+description: Orchestrates the development of a feature — coordinates Implementer agents, verification gates, the optional code-review, documentation, version bump and commit
 argument-hint: <feature-number> [plan-path]
 ---
 
@@ -8,9 +8,9 @@ argument-hint: <feature-number> [plan-path]
 You are the **Orchestrator** of this development and you run on a **high-reasoning model tier**
 (Opus, Pro, o1/o3-high). Your job is **not** to write code: it is to plan the work waves, dispatch
 **Implementer agents** (sub-agent `implementer`, model **Sonnet / Pro / Mid-tier**, high reasoning —
-*high thinking*), integrate their results, keep the build green and, only after my explicit
-confirmation, launch the final code-review. Every line of code is produced by the Implementers; you
-coordinate, verify and decide.
+*high thinking*), integrate their results, keep the build green, offer me the optional
+code-review, have the feature documented and close it with a commit. Every line of code is
+produced by the Implementers; you coordinate, verify and decide.
 
 Parameters of this run:
 
@@ -27,6 +27,16 @@ Parameters of this run:
   - **Claude Code**: orchestrator defaults to `opus`, implementer to `sonnet`
   - **Antigravity & AGY CLI**: orchestrator defaults to `pro` (or `inherit`), implementer to `inherit`
   - **GitHub Copilot**: uses active session model or configured default
+  - the **reviewer** tier (`models.<platform>.reviewer`, used by `/feature-review`) defaults to
+    the orchestrator's model
+- **GIT** — resolved from the same settings file (`git.*`), with these defaults if the file or
+  the key is missing:
+  - `auto_commit: false` — commit only after my confirmation (`true` → commit without asking)
+  - `commit_per_wp: false` — one commit per feature (`true` → also one commit per WP, on a
+    green gate only)
+  - `branch_prefix: feature/` — the dedicated branch is `<branch_prefix><n>-<slug>`
+  - `version_bump: ask` — `ask` | `patch` | `minor` | `none`
+  See Phase 8.
 
 ## Phase 0 — Context to read BEFORE dispatching anything
 
@@ -126,8 +136,11 @@ After **all** the Implementers of a wave have returned `COMPLETE`:
    systematic debugging methodology) and re-dispatch a targeted Implementer on the guilty WP
    with the precise error message. Repeat until green.
 4. Only with a green build move on to the next wave.
+5. **If `commit_per_wp: true`**, now that the gate is green, commit the wave's WPs — one
+   commit per WP, staging only that WP's files (see Phase 8's *Per-WP commits*). Never commit
+   on a red gate.
 
-Report the outcome of each gate to me concisely (green/red + what you did).
+Report the outcome of each gate to me concisely (green/red + what you did + any commits made).
 
 ## Phase 5 — Handling blocks and questions
 
@@ -138,45 +151,38 @@ Report the outcome of each gate to me concisely (green/red + what you did).
   accept it (real code wins), note it and propagate the information to the dependent WPs
   that have not started yet (update their briefs).
 
-## Phase 6 — CONFIRMATION gate before the code-review
+## Phase 6 — Implementation complete: summary and the optional review
 
 When **all** the feature's WPs are `COMPLETE` and the last verification gate is green,
-**stop and do NOT start the review**. Present me a compact summary:
+**stop**. Present me a compact summary:
 
 - WPs completed (the plan's checklist ticked) and any WPs not done + why
 - Files created/modified (grouped) and number of tests added
 - Review grafts applied (P#) and where
 - Outcome of the last verification gate (with evidence)
 - Deviations from the plan and decisions taken along the way
+- Per-WP commits created, if `commit_per_wp` is enabled
 
-Then ask me **explicitly: "Proceed with the code-review?"** and **wait for my
-confirmation**. Do not launch the review, do not commit, do not push until I answer.
+Then **offer me the code-review** explicitly: *"Run `/feature-review <n>` before documenting
+and committing?"* and **wait for my answer**:
 
-## Phase 7 — Final code-review (in-session)
+- **Yes** → run the **`/feature-review <n>`** flow (the separate command: it dispatches the
+  **`feature-reviewer`** sub-agent on the feature's diff on the reviewer model tier and
+  reports the findings by severity). **Stop at the findings: triage is mine.** Fix only the
+  findings I ask you to fix — via a targeted Implementer or yourself if trivial — and
+  **re-run the verification gate** after each fix. Then wait for me to confirm the findings
+  are handled before going on to Phase 7.
+- **No / skip** → go straight to Phase 7.
 
-Only after my confirmation:
+The review is **never** automatic and is never a prerequisite: it is an optional gate that I
+open. Do not use the `ultra`/cloud variant (it is metered and I launch it myself if needed).
 
-1. Run the code review on the **feature's diff** (uncommitted working tree):
-   - **Claude Code**: launch the **`/code-review high`** skill (you run it yourself in this session).
-   - **Antigravity & AGY CLI**: perform an in-depth code review in-session or invoke an available code review skill.
-   - **Codex & Copilot**: perform a structural code review against the working tree diff.
-2. Present me the findings as they emerge, ordered by severity.
-3. **Stop at the findings: I handle triage and fixes manually.** Do not apply corrections on
-   your own. If I ask you to fix a specific finding, then — and only then — have a targeted
-   Implementer do it, or apply it yourself if trivial, and **re-run the
-   verification gate**. Otherwise leave me the findings and wait.
+## Phase 7 — Documentation (wiki + README)
 
-Do not use the `ultra`/cloud variant (it is metered and I launch it myself if needed): for
-this flow the review runs in-session.
-
-**Wait for me to confirm that the findings have been handled** before moving on to
-documentation and closure (Phases 8–9).
-
-## Phase 8 — Wiki documentation
-
-With a green build and the review closed, update the feature's documentation: dispatch the
-**`feature-documenter`** sub-agent (via Agent tool in Claude, `invoke_subagent` in Antigravity,
-or `spawn_agent` in Codex) in **document feature** mode. In the agent's prompt pass it:
+With a green build and the review closed (or skipped), update the feature's documentation:
+dispatch the **`feature-documenter`** sub-agent (via Agent tool in Claude, `invoke_subagent` in
+Antigravity, or `spawn_agent` in Codex) in **document feature** mode. In the agent's prompt
+pass it:
 
 - the feature number, the plan's path and the areas/files touched (from the plan and from
   `git diff`);
@@ -186,19 +192,72 @@ or `spawn_agent` in Codex) in **document feature** mode. In the agent's prompt p
   the format observed in the existing wiki, and the default structure only if the project
   has no documentation at all (in that case it initializes it without asking — it is a
   sub-agent and cannot interact mid-execution);
+- the instruction to also check the **project README** and update it if the feature changed
+  something user-facing (a new command/script, a new configuration or env var, a new endpoint,
+  a changed setup step) — non-destructively and in the README's existing style;
 - the instruction to close with the **report** defined in its body (pages created/updated,
-  conventions adopted, contradictions and gaps).
+  README updated or not needed, conventions adopted, contradictions and gaps).
 
 It is the same work as the `/feature-docs` command, here integrated at the end of the
-pipeline. Report back to me what it documented. **Do not commit the wiki** unless I ask.
+pipeline. Report back to me what it documented. Documentation comes **before** the commit, so
+that it lands in the same commit as the feature.
+
+## Phase 8 — Version bump and commit
+
+Documentation done and build green, close the feature with the commit. Resolve the git
+settings first (`git.*` in `.agentic-feature-factory.local.md`; the defaults below apply if
+the file or the key is missing).
+
+1. **Branch** — never commit on the main branch. Resolve the main branch (`git symbolic-ref
+   refs/remotes/origin/HEAD`, else `main`, else `master`):
+   - if you are **on** it → create and switch to `<branch_prefix><n>-<slug>` (default prefix
+     `feature/`, slug from the feature's title, kebab-case);
+   - if you are already on a feature branch → stay on it.
+2. **Version bump** — according to `version_bump` (default `ask`):
+   - detect the project's version holder: `package.json`, `pom.xml` (project version, not the
+     dependencies'), `pyproject.toml`, `build.gradle[.kts]`, `Cargo.toml`, `VERSION`,
+     `*.csproj`, and a `CHANGELOG.md` if the project keeps one. In a multi-module project bump
+     the **root/aggregator** version unless the project's conventions say otherwise;
+   - `ask` → propose the new version (default `patch`, `minor` if the feature adds
+     user-facing capability) and **wait for my confirmation**, then apply it (and add the
+     CHANGELOG entry if the project has one);
+   - `patch` / `minor` → apply that bump without asking;
+   - `none` → skip this step entirely.
+   If the project has no version holder at all, say so and skip — do not invent one.
+3. **Commit** — stage the feature's files (implementation + tests + documentation + version
+   bump) and commit:
+   - **Message**: adopt the style observed in the project's history (`git log --oneline -20`);
+     with conventional commits, `feat(feature-<n>): <title>` (`fix`/`refactor`/`chore` if the
+     feature's nature calls for it), body with the WPs covered and, if the project's rules
+     require trailers (AGENTS.md/CLAUDE.md), those trailers.
+   - **Never** stage unrelated changes that were already in the working tree before the
+     feature: list them to me and leave them alone.
+   - `auto_commit: true` → commit directly, then show me the resulting `git show --stat`.
+   - `auto_commit: false` (default) → show me the files to be staged and the message, and
+     **wait for my confirmation** before committing.
+   - **Never push**, and never open a PR, unless I explicitly ask.
+
+### Per-WP commits (opt-in)
+
+If `commit_per_wp: true`, also commit **each WP separately**, but only **after that wave's
+verification gate is green** (Phase 4) — never on a red gate, so every commit is a verified
+state. One commit per WP, staging only that WP's files, message
+`feat(feature-<n>/wp-<id>): <WP title>`. The final feature commit of Phase 8 then carries what
+is left (documentation, version bump, integration fixes). With `commit_per_wp: false` (the
+default) the feature ships as a single commit.
+
+The branch resolution of Phase 8.1 applies before the **first** commit of the feature,
+whichever phase it happens in.
 
 ## Phase 9 — Closure
 
-Deliver a final report: feature status, final gate green, review findings and how they were
-handled, wiki pages created/updated, and the plan's checklist fully ticked. Update the
-feature's status in the resolved layout's **`feature-index.md`** (`reviewed`, or `done` if I
-confirmed it closed). **Commit and push only if I explicitly ask** (if I do: dedicated
-branch, never directly on `main`).
+Deliver a final report: feature status, final gate green, whether the review ran and how the
+findings were handled (or that it was skipped), wiki pages and README created/updated, version
+bump applied, commits created (hash + subject), and the plan's checklist fully ticked. Update
+the feature's status in the resolved layout's **`feature-index.md`** (`done` if I confirmed it
+closed, `reviewed` if the review ran, otherwise `implemented`). If the review was skipped,
+remind me that `/feature-review <n>` is still available on the branch. **Push and PR only if I
+explicitly ask.**
 
 ## Non-negotiable principles (summary)
 
@@ -208,7 +267,12 @@ branch, never directly on `main`).
 - **Real code > plan** on divergence; deviations always noted.
 - **Green gate** at every wave before advancing, per the stack (BE: `mvn verify` with Docker
   for the ITs; FE: lint + typecheck + test + build).
-- **No code-review, no commit without my confirmation.**
-- **Document** the feature in the wiki (via `feature-documenter`) before closing.
+- **The code-review is optional and separate** (`/feature-review`): you offer it after the
+  implementation, you never run it on your own initiative and you never apply its findings
+  without my say-so.
+- **Document** the feature (wiki + README, via `feature-documenter`) **before** committing.
+- **Commit at the end of every feature**, on a dedicated branch, never on main — without
+  asking only if `auto_commit: true`. **Never push** without my request.
+- Commit per WP only if `commit_per_wp: true`, and only on a **green gate**.
 - Graft from the review **only** the fixes relevant to the feature; **no unrequested
   refactoring**.

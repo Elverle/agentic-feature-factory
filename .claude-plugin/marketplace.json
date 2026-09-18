@@ -1,14 +1,14 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "agentic-feature-factory",
-  "description": "Marketplace hosting the agentic feature development pipeline (plan -> arch-review -> orchestration -> code-review -> docs).",
+  "description": "Marketplace hosting the agentic feature development pipeline (plan -> arch-review -> orchestration -> optional review -> docs -> commit).",
   "owner": {
     "name": "Elverle"
   },
   "plugins": [
     {
       "name": "agentic-feature-factory",
-      "description": "Work-package planning, architecture review and Opus/Implementer(Sonnet) orchestration with final code-review and project-convention-aware wiki documentation.",
+      "description": "Work-package planning, architecture review and Opus/Implementer(Sonnet) orchestration with an optional separate code-review, project-convention-aware wiki + README documentation, version bump and commit per feature.",
       "source": "./",
       "category": "workflow"
     }

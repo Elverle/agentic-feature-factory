@@ -2,7 +2,7 @@
 
 Agent-driven feature development pipeline for **Claude Code**, **Google Antigravity**, **AGY CLI**, **OpenAI Codex**, and **GitHub Copilot**:
 
-**brainstorm → plan → architecture review → implement (orchestrated) → code-review → document**
+**brainstorm → plan → architecture review → implement (orchestrated) → review (optional) → document → commit**
 
 It works on **backend** (Spring Boot + Maven) and **frontend** (React / Next / Vite)
 projects alike: the pipeline is stack-neutral and adapts the verification gate to the
@@ -84,7 +84,7 @@ bun run adapt antigravity
 npm run adapt antigravity
 ```
 
-The skills (`feature-plan`, `feature-dev`, `arch-review`, `feature-docs`, `spring-maven-build`, `node-frontend-build`) are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
+The skills (`feature-plan`, `feature-dev`, `arch-review`, `feature-review`, `feature-docs`, `spring-maven-build`, `node-frontend-build`) are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
 
 ### 2. OpenAI Codex
 
@@ -113,7 +113,7 @@ bun run adapt copilot
 bun run adapt copilot --scope project
 ```
 
-In VS Code Copilot Chat or Copilot CLI, type `/` to access `/feature-plan`, `/feature-dev`, `/arch-review`, and `/feature-docs`.
+In VS Code Copilot Chat or Copilot CLI, type `/` to access `/feature-plan`, `/feature-dev`, `/arch-review`, `/feature-review`, and `/feature-docs`.
 
 ### 4. Claude Code
 
@@ -207,20 +207,31 @@ The orchestrator starts from `content/feature/feature-5/plan.md` plus the review
 
 1. shows you the **waves** (parallel and sequential WPs) and starts;
 2. for each wave dispatches the **Implementers**, then runs the **gate**
-   (`mvn verify` or the frontend build) — it must be green before advancing;
-3. once all WPs are complete, **stops and asks for confirmation** before the review;
-4. on confirmation runs **code-review** (`/code-review high` in Claude Code, or in-session review)
-   and leaves you the findings: **you handle triage and fixes**;
-5. when you confirm the findings are handled, **documents** the feature in the project wiki
-   (via `feature-documenter`) and closes, updating `feature-index.md` → `done`.
+   (`mvn verify` or the frontend build) — it must be green before advancing (with
+   `commit_per_wp: true`, each WP of the wave is committed here, on a green gate only);
+3. once all WPs are complete, **stops**, summarizes the work and **offers you the review**: on
+   a yes it runs the `/feature-review 5` flow and leaves you the findings — **you handle
+   triage and fixes**; on a no it moves on;
+4. **documents** the feature in the project wiki and, if something user-facing changed, in the
+   project **README** (via `feature-documenter`);
+5. **bumps the project version** (asking you to confirm it, by default) and **commits** the
+   feature on a dedicated branch `feature/5-<slug>` — without asking only if
+   `auto_commit: true`, and **never pushing** unless you ask;
+6. closes, updating `feature-index.md`.
 
 ### The flow at a glance
 
 ```
 /feature-brainstorm 5  →  /feature-plan 5  →  /arch-review 5  →  /feature-dev 5
   explores intent +         analyzes + asks       reviews and          orchestrates Implementers
-  approaches & YAGNI        → plan.md             assigns fixes        → gate → CONFIRM → review
-  → spec.md                                                            → wiki documentation
+  approaches & YAGNI        → plan.md             assigns fixes        → gate per wave
+  → spec.md                                                            → offers /feature-review
+                                                                       → wiki + README
+                                                                       → version bump → commit
+
+                                                       /feature-review 5   (optional, standalone)
+                                                         feature-reviewer on the diff
+                                                         → findings by severity, triage is yours
 ```
 
 ## What's inside
@@ -230,10 +241,12 @@ The orchestrator starts from `content/feature/feature-5/plan.md` plus the review
 | `/feature-brainstorm <n\|description>` | command / skill | Explores user intent and technical approaches through proactive questions; cuts unnecessary scope (YAGNI) and produces a validated specification (`spec.md`) |
 | `/feature-plan <n\|description> [spec]` | command / skill | Analyzes codebase + requirements, **asks you questions**, then produces the work-package plan; resolves the planning layout and handles numbering and feature folders |
 | `/arch-review [n]` | command / skill | Architecture review of the codebase against a planned feature (or the whole planned set) |
-| `/feature-dev <n> [plan-path]` | command / skill | Orchestrates Implementer subagents, verification gates, confirmation, final code-review and wiki documentation |
-| `/feature-docs [scope]` | command / skill | Documents in wiki format via `feature-documenter` (feature / area / `lint`), standalone |
+| `/feature-dev <n> [plan-path]` | command / skill | Orchestrates Implementer subagents and verification gates, offers the optional review, then documentation, version bump and commit on a dedicated branch |
+| `/feature-review [n\|path]` | command / skill | **Optional, standalone** code-review: dispatches `feature-reviewer` on the feature's diff and reports findings by severity — no fixes, no commits |
+| `/feature-docs [scope]` | command / skill | Documents in wiki format via `feature-documenter` (feature / area / `lint`) and updates the project README when something user-facing changed, standalone |
 | `implementer` | agent | Executes ONE work package test-driven, within the WP's file boundaries; dispatched in parallel by `/feature-dev` |
-| `feature-documenter` | agent | Updates the project wiki adopting the **project's** conventions (AGENTS.md/CLAUDE.md/GEMINI.md → existing wiki format → default structure) |
+| `feature-documenter` | agent | Updates the project wiki (and the README, when the feature is user-facing) adopting the **project's** conventions (AGENTS.md/CLAUDE.md/GEMINI.md → existing wiki format → default structure) |
+| `feature-reviewer` | agent | Reviews a feature's diff for correctness, security, silent failures, performance, tests and contract drift; read-only, reports findings by severity |
 | `spring-maven-build` | skill | Backend build/test gate (Docker for Testcontainers; `mvn verify`; formatter; Flyway vs Liquibase detection; multi-module) |
 | `node-frontend-build` | skill | Frontend build/test gate (detects pnpm/yarn/npm; lint + typecheck + test + build) |
 
@@ -253,20 +266,32 @@ or under `.agents/`, `.codex/`, or `.claude/`):
 plans_dir: content        # folder containing feature-index.md and the plans
 wiki_dir: docs/wiki       # optional: where the project wiki lives
 
+# Optional: git behaviour of /feature-dev's closing phase (these are the defaults)
+git:
+  auto_commit: false      # true: commit without asking for confirmation
+  commit_per_wp: false    # true: also one commit per work package, on a green gate only
+  branch_prefix: feature/ # dedicated branch: <branch_prefix><feature-number>-<slug>
+  version_bump: ask       # ask | patch | minor | none — before the feature commit
+
 # Optional: configure model tiers per platform
+# `reviewer` (used by /feature-review) falls back to `orchestrator` when omitted
 models:
   codex:
     orchestrator: gpt5.6-sol
     implementer: gpt5.6-luna
+    reviewer: gpt5.6-sol
   claude:
     orchestrator: opus
     implementer: sonnet
+    reviewer: opus
   antigravity:
     orchestrator: pro
     implementer: inherit
+    reviewer: pro
   copilot:
     orchestrator: gpt-4o
     implementer: gpt-4o
+    reviewer: gpt-4o
 ---
 ```
 
@@ -292,13 +317,25 @@ references** — they never create a second index. If multiple conflicting conve
 ## Configuration
 
 - **Per-repo settings**: `.agentic-feature-factory.local.md` with `plans_dir`, `wiki_dir`,
-  and platform `models` in the frontmatter (see example in `.agentic-feature-factory.local.example.md`).
+  `git` and platform `models` in the frontmatter (see example in `.agentic-feature-factory.local.example.md`).
+- **Git behaviour** (`git.*`, all optional — the defaults are the conservative ones):
+
+  | Key | Default | Effect |
+  | --- | --- | --- |
+  | `auto_commit` | `false` | `true`: `/feature-dev` commits without asking. `false`: it shows you the files and the message and waits |
+  | `commit_per_wp` | `false` | `true`: one commit per work package too, made only after that wave's gate is green |
+  | `branch_prefix` | `feature/` | The dedicated branch is `<prefix><feature-number>-<slug>`; the pipeline never commits on `main`/`master` |
+  | `version_bump` | `ask` | `ask`: proposes the new version and waits. `patch`/`minor`: applies it silently. `none`: skips the bump |
+
+  Pushing and opening a PR are **never** automatic: you ask for them explicitly.
 - **Configurable model tiers**:
   - **Codex**: Orchestrator defaults to `gpt5.6-sol`, Implementer to `gpt5.6-luna`.
   - **Claude Code**: Orchestrator defaults to `opus`, Implementer to `sonnet`.
   - **Antigravity & AGY CLI**: Orchestrator defaults to `pro`, Implementer to `inherit`.
   - **GitHub Copilot**: Orchestrator defaults to `gpt-4o`, Implementer to `gpt-4o`.
-  Models can be customized in `.agentic-feature-factory.local.md` or overridden on the command line via `--orchestrator <model>` and `--implementer <model>`.
+  - **Reviewer** (`feature-reviewer`): defaults to the platform's **orchestrator** model — a
+    review is reasoning work, so never run it on a lower tier.
+  Models can be customized in `.agentic-feature-factory.local.md` or overridden on the command line via `--orchestrator <model>`, `--implementer <model>` and `--reviewer <model>`.
 - **Other stacks**: the build skills are stack-scoped — `spring-maven-build` only activates on
   Spring/Maven, `node-frontend-build` only on Node projects. For Gradle, Python, Go and the
   like, add an analogous skill to the project and `/feature-dev` will use it as the gate.
@@ -318,10 +355,16 @@ references** — they never create a second index. If multiple conflicting conve
   build), driven by the two build skills.
 - **One feature at a time**, in file-disjoint waves following the plan's dependency map, with
   a green gate between waves.
-- **No code-review and no commit without your explicit confirmation.**
-- **Documentation integrated, on the project's terms.** Every feature closes with a wiki
-  update via `feature-documenter`, which mimics the existing wiki's format (naming, links,
-  frontmatter, language) instead of imposing its own; its default structure applies only to
+- **The code-review is optional and separate.** `/feature-dev` offers it after the
+  implementation and before the documentation, but never runs it on its own and never applies
+  its findings without your say-so; `/feature-review` also stands alone on any diff.
+- **Every feature closes with a commit**, on a dedicated branch and never on `main` —
+  documentation and version bump land in the same commit. Confirmation is required unless you
+  set `auto_commit: true`; **push and PR are never automatic**.
+- **Documentation integrated, on the project's terms.** Every feature is documented via
+  `feature-documenter` just before the commit: it mimics the existing wiki's format (naming,
+  links, frontmatter, language) instead of imposing its own, and touches the project README
+  only when the feature changed something user-facing. Its default structure applies only to
   projects with no documentation at all.
 - **No stubs between parallel WPs.** If a WP depends on code that doesn't exist yet, that's a
   wave-ordering error: the Implementer returns BLOCKED instead of inventing placeholder

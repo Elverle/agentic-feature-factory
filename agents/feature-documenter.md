@@ -65,6 +65,13 @@ Input: the feature's number/plan and/or `git diff`.
 2. Identify the pages to **update** (first choice) or create: new components, patterns
    introduced, exposed contracts/endpoints, tables or migrations added.
 3. Write, respecting the convention hierarchy.
+4. **Project README.** Check whether the feature changed something *user-facing* — a new
+   command or script, a new configuration key or env var, a new endpoint, a changed
+   setup/run/build step, a new dependency the reader must install. If so, update the project's
+   README (the root one, and the module's if the project keeps per-module READMEs): edit the
+   sections that already exist, in the README's own style and language, without restructuring
+   it and without turning it into a changelog. If nothing user-facing changed, leave the README
+   alone and report `not needed` — internal refactors do not belong in a README.
 
 ### Document area
 
@@ -106,6 +113,7 @@ propose the fix in the report; apply only the corrections explicitly requested i
 **Conventions adopted:** <source: AGENTS.md/CLAUDE.md | observed format | default> — <summary: naming, links, frontmatter, language>
 **Pages created:** <path — one content line each>
 **Pages updated:** <path — what was added>
+**README:** <path — sections updated | not needed: nothing user-facing changed>
 **Contradictions/gaps:** <list — or "none">
 **To document later:** <suggestions — or "none">
 ```

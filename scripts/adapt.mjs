@@ -33,7 +33,7 @@ const COMMANDS = [
   },
   {
     name: 'feature-dev',
-    description: 'Orchestrates the development of a feature: coordinates implementer subagents, verification gates, confirmation, and final review. Triggers on /feature-dev <n> [plan-path].',
+    description: 'Orchestrates the development of a feature: coordinates implementer subagents, verification gates, the optional code-review, documentation, version bump and commit. Triggers on /feature-dev <n> [plan-path].',
     argumentHint: '<feature-number> [plan-path]',
     source: 'commands/feature-dev.md',
   },
@@ -48,19 +48,35 @@ const COMMANDS = [
     description: 'Documents code in wiki format via feature-documenter subagent (feature/area/lint), adopting project conventions. Triggers on /feature-docs [scope].',
     argumentHint: '[feature-number | path/area | "lint"]',
     source: 'commands/feature-docs.md',
+  },
+  {
+    name: 'feature-review',
+    description: "Optional code-review of an implemented feature: dispatches the feature-reviewer subagent on the feature's diff and reports findings by severity (no fixes, no commits). Triggers on /feature-review [n | path].",
+    argumentHint: '[feature-number | path | "--focus <area>"]',
+    source: 'commands/feature-review.md',
   }
 ];
 
+// `modelRole` selects which resolved model tier is injected into the agent file
+// (defaults to `implementer` when omitted).
 const AGENTS = [
   {
     name: 'implementer',
     description: "Implementer of the /feature-dev pipeline. Receives ONE work package from the feature plan and implements it test-driven, staying within the WP's file boundaries.",
     source: 'agents/implementer.md',
+    modelRole: 'implementer',
   },
   {
     name: 'feature-documenter',
     description: "Documenter of the /feature-dev and /feature-docs pipeline. Updates the project's wiki/technical documentation adopting project conventions.",
     source: 'agents/feature-documenter.md',
+    modelRole: 'implementer',
+  },
+  {
+    name: 'feature-reviewer',
+    description: "Reviewer of the /feature-review command. Reviews a feature's diff for correctness, security, performance and convention violations, and reports findings by severity. Read-only: never edits, never commits.",
+    source: 'agents/feature-reviewer.md',
+    modelRole: 'reviewer',
   }
 ];
 
@@ -92,6 +108,7 @@ Options:
   --dest <path>              Override target installation directory
   --orchestrator <model>     Override orchestrator model for target
   --implementer <model>      Override implementer model for target
+  --reviewer <model>         Override reviewer model for target (default: orchestrator model)
   --dry-run                  Simulate actions without writing files
   --help, -h                 Show this help message
 
@@ -113,6 +130,7 @@ function parseArgs() {
     dest: null,
     orchestrator: null,
     implementer: null,
+    reviewer: null,
     dryRun: false,
   };
 
@@ -130,6 +148,8 @@ function parseArgs() {
       options.orchestrator = args[++i];
     } else if (arg === '--implementer' && args[i + 1]) {
       options.implementer = args[++i];
+    } else if (arg === '--reviewer' && args[i + 1]) {
+      options.reviewer = args[++i];
     } else if (arg === '--dry-run') {
       options.dryRun = true;
     } else if (!arg.startsWith('-') && !target) {
@@ -286,8 +306,9 @@ function loadLocalConfig() {
 }
 
 /**
- * Resolves orchestrator and implementer models for a platform.
+ * Resolves orchestrator, implementer and reviewer models for a platform.
  * Precedence: CLI args > .local.md platform config > .local.md global config > defaults.
+ * The reviewer tier falls back to the orchestrator's model when not configured.
  */
 function resolvePlatformModels(platform, config, options = {}) {
   const normPlatform = (platform === 'claude-code' ? 'claude' : platform === 'github-copilot' ? 'copilot' : platform).toLowerCase();
@@ -305,10 +326,17 @@ function resolvePlatformModels(platform, config, options = {}) {
   const implementer = options.implementer 
     || platConf.implementer 
     || modelsConf.implementer 
-    || config?.implementer_model 
+    || config?.implementer_model
     || defaults.implementer;
 
-  return { orchestrator, implementer };
+  const reviewer = options.reviewer
+    || platConf.reviewer
+    || modelsConf.reviewer
+    || config?.reviewer_model
+    || defaults.reviewer
+    || orchestrator;
+
+  return { orchestrator, implementer, reviewer };
 }
 
 /**
@@ -341,7 +369,7 @@ function injectFrontmatterModel(content, modelName) {
 function adaptAntigravity(options, config) {
   const models = resolvePlatformModels('antigravity', config, options);
   console.log(`\n📦 Adapting for Antigravity & AGY CLI (Scope: ${options.scope})...`);
-  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}, reviewer=${models.reviewer}`);
   const targetRoot = options.dest || (
     options.scope === 'global'
       ? path.join(os.homedir(), '.gemini', 'config', 'plugins', 'agentic-feature-factory')
@@ -403,7 +431,9 @@ This project defines the agentic feature development pipeline:
 2. **Planning**: Use skill \`feature-plan\` to analyze requirements and produce work packages.
 3. **Architecture Review**: Use skill \`arch-review\` to assess feasibility and graft pain-point fixes.
 4. **Development**: Use skill \`feature-dev\` to orchestrate Implementer subagents and verify gates.
-5. **Documentation**: Use skill \`feature-docs\` to document changes into the project wiki.
+5. **Review (optional)**: Use skill \`feature-review\` to dispatch the \`feature-reviewer\` subagent on the feature's diff and get findings ordered by severity.
+6. **Documentation**: Use skill \`feature-docs\` to document changes into the project wiki and README.
+7. **Closure**: \`feature-dev\` bumps the project version and commits the feature on a dedicated branch (see the \`git.*\` settings in \`.agentic-feature-factory.local.md\`).
 
 ## Specialized Subagents
 
@@ -413,7 +443,7 @@ The orchestrator dispatches the following specialized subagents via \`invoke_sub
 
   for (const agent of AGENTS) {
     const raw = readSource(agent.source);
-    const agentSource = injectFrontmatterModel(raw, models.implementer);
+    const agentSource = injectFrontmatterModel(raw, models[agent.modelRole] || models.implementer);
     agentsRuleContent += `### Subagent: \`${agent.name}\`\n\n${agentSource}\n\n---\n\n`;
   }
 
@@ -428,7 +458,7 @@ The orchestrator dispatches the following specialized subagents via \`invoke_sub
 function adaptCodex(options, config) {
   const models = resolvePlatformModels('codex', config, options);
   console.log(`\n📦 Adapting for OpenAI Codex CLI (Scope: ${options.scope})...`);
-  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}, reviewer=${models.reviewer}`);
   const targetRoot = options.dest || (
     options.scope === 'global'
       ? path.join(os.homedir(), '.codex')
@@ -443,7 +473,7 @@ function adaptCodex(options, config) {
   for (const agent of AGENTS) {
     const destPath = path.join(agentsDir, `${agent.name}.md`);
     const raw = readSource(agent.source);
-    const transformed = injectFrontmatterModel(raw, models.implementer);
+    const transformed = injectFrontmatterModel(raw, models[agent.modelRole] || models.implementer);
     writeFileSafe(destPath, transformed, options.dryRun);
   }
 
@@ -472,7 +502,7 @@ function adaptCodex(options, config) {
 function adaptCopilot(options, config) {
   const models = resolvePlatformModels('copilot', config, options);
   console.log(`\n📦 Adapting for GitHub Copilot (Scope: ${options.scope})...`);
-  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}, reviewer=${models.reviewer}`);
   
   let promptsDir;
   let instructionsPath;
@@ -513,8 +543,9 @@ When developing features in this project, adhere to the agentic feature developm
 - **Phase 0 (Brainstorming)**: Run \`/feature-brainstorm\` to clarify intent, explore approaches, and produce a feature specification (\`spec.md\`).
 - **Phase 1 (Planning)**: Run \`/feature-plan\` to analyze requirements and generate file-disjoint work packages.
 - **Phase 2 (Architecture Review)**: Run \`/arch-review\` to assess architectural debt and graft fixes into work packages.
-- **Phase 3 (Execution)**: Run \`/feature-dev\` to implement work packages test-driven and verify build gates.
-- **Phase 4 (Documentation)**: Run \`/feature-docs\` to document changes into the project wiki adhering to existing conventions.
+- **Phase 3 (Execution)**: Run \`/feature-dev\` to implement work packages test-driven, verify build gates, document and commit the feature.
+- **Phase 4 (Review, optional)**: Run \`/feature-review\` on the feature's diff for findings by severity; triage and fixes stay with the user.
+- **Phase 5 (Documentation)**: Run \`/feature-docs\` to document changes into the project wiki and README adhering to existing conventions (integrated at the end of \`/feature-dev\`).
 
 ## Build Verification Gates
 - **Spring Boot / Maven**: Formatting with Spotless (\`mvn spotless:apply\`) + full test suite with \`mvn verify\`.
@@ -531,7 +562,7 @@ When developing features in this project, adhere to the agentic feature developm
 function adaptClaude(options, config) {
   const models = resolvePlatformModels('claude', config, options);
   console.log(`\n📦 Validating/Adapting for Claude Code (Scope: ${options.scope})...`);
-  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}`);
+  console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}, reviewer=${models.reviewer}`);
   const targetRoot = options.dest || (
     options.scope === 'global'
       ? path.join(os.homedir(), '.claude', 'plugins', 'agentic-feature-factory')
@@ -553,7 +584,7 @@ function adaptClaude(options, config) {
     for (const agent of AGENTS) {
       const dest = path.join(targetRoot, agent.source);
       const raw = readSource(agent.source);
-      const transformed = injectFrontmatterModel(raw, models.implementer);
+      const transformed = injectFrontmatterModel(raw, models[agent.modelRole] || models.implementer);
       writeFileSafe(dest, transformed, options.dryRun);
     }
     for (const skill of BUILD_SKILLS) {
