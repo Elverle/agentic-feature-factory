@@ -16,6 +16,7 @@ project's stack.
   - [GitHub Copilot](#3-github-copilot)
   - [Claude Code](#4-claude-code)
   - [All Platforms at Once](#all-platforms-at-once)
+  - [Updating an existing installation](#updating-an-existing-installation)
 - [Quick start: one full cycle](#quick-start-one-full-cycle)
 - [What's inside](#whats-inside)
 - [Planning layout](#planning-layout-settings-discovery-default)
@@ -137,6 +138,44 @@ bun run adapt claude
 bun run adapt all
 # or: npm run adapt all
 ```
+
+### Updating an existing installation
+
+The adapters **copy** the commands, agents and skills into each platform's directory: an
+installed copy does not follow this repository. Every time you pull a new version — or edit a
+command/agent yourself — re-run the adapter for the platforms you use:
+
+```bash
+git pull
+npm run adapt all          # or: bun run adapt all — regenerates every platform
+```
+
+Where each platform reads them from, and what a re-run refreshes:
+
+| Platform | Installed copy | Refreshed by |
+| --- | --- | --- |
+| Antigravity & AGY CLI | `~/.gemini/config/plugins/agentic-feature-factory/` (`skills/`, `rules/AGENTS.md`) | `npm run adapt antigravity` |
+| OpenAI Codex | `~/.codex/agents/`, `~/.codex/prompts/` | `npm run adapt codex` |
+| GitHub Copilot | `~/.copilot/prompts/` (or `.github/prompts/` with `--scope project`) | `npm run adapt copilot` |
+| Claude Code (adapter) | `~/.claude/plugins/agentic-feature-factory/` | `npm run adapt claude` |
+
+**Claude Code installed from the marketplace** needs one more step, because the plugin is
+pinned to the snapshot taken at install time:
+
+```
+/plugin marketplace update agentic-feature-factory
+```
+
+Then **restart the session** — plugin commands and agents are loaded at startup. Check with
+`/help` that the new commands are there (e.g. `/feature-review`).
+
+> `--mode link` symlinks the build skills and manifests instead of copying them, but commands
+> and agents are always written out because the adapter injects their `model:` frontmatter — so
+> a re-run stays necessary for those.
+
+A new version may also add **settings keys** (e.g. the `git.*` block in 1.4.0). They are always
+optional: the documented defaults apply when a key is missing, so an existing
+`.agentic-feature-factory.local.md` keeps working untouched.
 
 ### Quick start: one full cycle
 
