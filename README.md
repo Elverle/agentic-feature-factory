@@ -5,7 +5,8 @@ Agent-driven feature development pipeline for **Claude Code**, **Google Antigrav
 **brainstorm → plan → architecture review → implement (orchestrated) → review (optional) → document → commit**
 
 Lost track of where a feature stands? `/feature-next` reads the project's state and tells you
-the next command to run.
+the next command to run. A bugfix or a small patch? `/feature-patch` skips spec and plan but
+keeps the build gate, the review, the docs and the commit.
 
 It works on **backend** (Spring Boot + Maven) and **frontend** (React / Next / Vite)
 projects alike: the pipeline is stack-neutral and adapts the verification gate to the
@@ -87,7 +88,7 @@ bun run adapt antigravity
 npm run adapt antigravity
 ```
 
-Every command becomes a skill (`feature-brainstorm`, `feature-plan`, `arch-review`, `feature-dev`, `feature-review`, `feature-docs`, `feature-next`), alongside the build skills `spring-maven-build` and `node-frontend-build`; they are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
+Every command becomes a skill (`feature-brainstorm`, `feature-plan`, `arch-review`, `feature-dev`, `feature-patch`, `feature-review`, `feature-docs`, `feature-next`), alongside the build skills `spring-maven-build` and `node-frontend-build`; they are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
 
 ### 2. OpenAI Codex
 
@@ -116,7 +117,7 @@ bun run adapt copilot
 bun run adapt copilot --scope project
 ```
 
-In VS Code Copilot Chat or Copilot CLI, type `/` to access every command (`/feature-brainstorm`, `/feature-plan`, `/arch-review`, `/feature-dev`, `/feature-review`, `/feature-docs`, `/feature-next`).
+In VS Code Copilot Chat or Copilot CLI, type `/` to access every command (`/feature-brainstorm`, `/feature-plan`, `/arch-review`, `/feature-dev`, `/feature-patch`, `/feature-review`, `/feature-docs`, `/feature-next`).
 
 ### 4. Claude Code
 
@@ -273,6 +274,33 @@ The orchestrator starts from `content/feature/feature-5/plan.md` plus the review
 If a run is interrupted, `/feature-dev 5` picks up from the first work package not yet ticked
 in the plan's checklist.
 
+### Patches and bugfixes — `/feature-patch`
+
+A bug in feature 5, or a small tweak that touches a few files and changes no contract or API,
+does not need a spec or a plan:
+
+```
+/feature-patch 5 PDF export ignores the page orientation
+```
+
+It attaches to feature 5 (without a number: to the last developed feature), diagnoses the
+problem — for a bug, it reproduces it and defines the failing test — then dispatches one
+Implementer, runs the gate, offers the review, updates the docs only if something documented
+changed, bumps the **patch** version and commits on `fix/5.1-<slug>`. The trace:
+
+```
+content/
+├── feature-index.md          # | 5.1 | PDF orientation fix | implemented | … | patch-5.1.md |
+└── feature/
+    └── feature-5/
+        ├── plan.md
+        └── patch-5.1.md       # symptom, diagnosis, change, verification, review, commit
+```
+
+If the diagnosis shows more files or a contract change, it stops and proposes the full
+workflow, keeping the diagnosis as the planning input. `/feature-brainstorm` routes a request
+that turns out to be a fix the same way.
+
 ### At any point — `/feature-next`
 
 Reads the index, the feature folders, the branches and the working tree, and tells you the
@@ -294,6 +322,7 @@ then offers to launch the command for you. It never merges, pushes or opens PRs.
                                                          feature-reviewer on the diff
                                                          → findings by severity, triage is yours
 
+/feature-patch  (bugfix / small patch) diagnosis → gate → review? → docs → patch commit
 /feature-next   (any time) reads the project's state → the next command, offered to launch
 ```
 
@@ -305,6 +334,7 @@ then offers to launch the command for you. It never merges, pushes or opens PRs.
 | `/feature-plan <n\|description> [spec]` | command / skill | Analyzes codebase + requirements, **asks you questions**, then produces the work-package plan; resolves the planning layout and handles numbering and feature folders |
 | `/arch-review [n]` | command / skill | Architecture review of the codebase against a planned feature (or the whole planned set) |
 | `/feature-dev <n> [plan-path]` | command / skill | Orchestrates Implementer subagents and verification gates, offers the optional review, then documentation, version bump and commit on a dedicated branch |
+| `/feature-patch [n\|n.x] <description>` | command / skill | Light path for bugfixes and small patches (few files, no contract or API change): diagnosis, one Implementer with the build gate, optional review, docs, patch version bump and commit — traced as patch `n.x` of a feature; proposes the full workflow when the change is bigger |
 | `/feature-review [n\|path]` | command / skill | **Optional, standalone** code-review: dispatches `feature-reviewer` on the feature's diff and reports findings by severity — no fixes, no commits |
 | `/feature-docs [scope]` | command / skill | Documents in wiki format via `feature-documenter` (feature / area / `lint`) and updates the project README when something user-facing changed, standalone |
 | `/feature-next [n]` | command / skill | Reads the project's feature state (index, feature folders, branches, working tree) and tells you the next command to run, then offers to launch it; read-only until you confirm |
@@ -335,6 +365,7 @@ git:
   auto_commit: false      # true: commit without asking for confirmation
   commit_per_wp: false    # true: also one commit per work package, on a green gate only
   branch_prefix: feature/ # dedicated branch: <branch_prefix><feature-number>-<slug>
+  patch_branch_prefix: fix/  # patch branch: <patch_branch_prefix><n>.<x>-<slug>
   version_bump: ask       # ask | patch | minor | none — before the feature commit
 
 # Optional: configure model tiers per platform
@@ -381,8 +412,9 @@ references** — they never create a second index. If multiple conflicting conve
 
 **Feature status** in the index follows the pipeline: `specified` (`/feature-brainstorm`) →
 `planned` (`/feature-plan`) → `in-progress` → `implemented` (`/feature-dev`) → `reviewed` →
-`done`. `/feature-next` trusts the evidence on disk and in git over the index, and reports
-any drift between the two.
+`done`. Patches (`n.x`, from `/feature-patch`) follow the same lifecycle without `planned`,
+and end `escalated` when they turn out to be features. `/feature-next` trusts the evidence on
+disk and in git over the index, and reports any drift between the two.
 
 ## Configuration
 
@@ -395,6 +427,7 @@ any drift between the two.
   | `auto_commit` | `false` | `true`: `/feature-dev` commits without asking. `false`: it shows you the files and the message and waits |
   | `commit_per_wp` | `false` | `true`: one commit per work package too, made only after that wave's gate is green |
   | `branch_prefix` | `feature/` | The dedicated branch is `<prefix><feature-number>-<slug>`; the pipeline never commits on `main`/`master` |
+  | `patch_branch_prefix` | `fix/` | Branch for `/feature-patch`: `<prefix><n>.<x>-<slug>`; a patch to a feature not merged yet goes on that feature's branch instead |
   | `version_bump` | `ask` | `ask`: proposes the new version and waits. `patch`/`minor`: applies it silently. `none`: skips the bump |
 
   Pushing and opening a PR are **never** automatic: you ask for them explicitly.

@@ -68,6 +68,61 @@ test('manifests agree on name and version', () => {
   assert.ok(marketplace.plugins.some((p) => p.name === plugin.name), 'marketplace does not list the plugin');
 });
 
+test('every git setting in the example file is documented in the README', () => {
+  const example = readText('.agentic-feature-factory.local.example.md');
+  const gitBlock = example.match(/^git:\r?\n((?:[ \t]+.*\r?\n)+)/m);
+  assert.ok(gitBlock, 'no git: block in the example settings file');
+  const keys = [...gitBlock[1].matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
+  assert.ok(keys.length > 0, 'no keys under git:');
+  const readme = readText('README.md');
+  for (const key of keys) {
+    // Table rows may be indented (the git table sits inside a list item).
+    assert.match(readme, new RegExp(`^\\s*\\|\\s*\`${key}\`\\s*\\|`, 'm'), `README has no table row for git.${key}`);
+  }
+});
+
+// Prompt invariants: rules /feature-patch must keep. They pin review findings that no runtime
+// test can exercise (the command is a prompt), so a later edit cannot silently drop them.
+// Whitespace is collapsed so the invariants survive re-wrapping of the prompt.
+const patchPrompt = () => readText('commands/feature-patch.md').replace(/\s+/g, ' ');
+
+test('feature-patch: a resumed patch always re-resolves the branch, a specified one re-verifies its diagnosis', () => {
+  const p = patchPrompt();
+  assert.match(p, /when resuming, \*\*always run Phase 4\*\*/i);
+  assert.match(p, /`specified` patch[^.]*starts at Phase 2/i);
+  assert.match(p, /## Docs/);
+});
+
+test('feature-patch: Phase 8 refuses to commit on the main branch', () => {
+  assert.match(patchPrompt(), /## Phase 8 [^#]*?If you are on the main branch, stop/);
+});
+
+test('feature-patch: the next patch number also counts branches and commits', () => {
+  const p = patchPrompt();
+  assert.ok(p.includes('<patch_branch_prefix><n>.*'), 'branches not counted');
+  assert.ok(p.includes('git log --all -E --grep "\\(feature-<n>\\.[0-9]+\\)"'), 'commits not counted');
+});
+
+test('feature-patch: the final status and Commit section are written before committing', () => {
+  assert.match(patchPrompt(), /before committing, write the final status/i);
+});
+
+test('feature-patch: a feature counts as merged when done or its commit is reachable from main', () => {
+  const p = patchPrompt();
+  assert.match(p, /squash/i);
+  assert.ok(p.includes('git log <main> -E --grep "\\(feature-<n>\\)"'), 'reachability from main not checked');
+});
+
+test('feature-patch: docs use the documenter in document feature mode', () => {
+  const p = patchPrompt();
+  assert.match(p, /\*\*document feature\*\* mode/);
+  assert.doesNotMatch(p, /document area/);
+});
+
+test('feature-patch: an unknown or unimplemented feature number is questioned', () => {
+  assert.match(patchPrompt(), /feature `n` does not exist or is not implemented[^.]*ask me/i);
+});
+
 test('the CHANGELOG has an entry for the current version', () => {
   const { version } = readJson('package.json');
   assert.match(readText('CHANGELOG.md'), new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\]`, 'm'));

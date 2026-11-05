@@ -29,7 +29,12 @@ messages**. Commits follow Conventional Commits (`feat:`, `fix:`, `docs:`, `chor
   - the settings file search order (`.agentic-feature-factory.local.md` in the repo root, then
     `.agents/`, `.codex/`, `.claude/`);
   - the feature status lifecycle: `specified → planned → in-progress → implemented →
-    reviewed → done`;
+    reviewed → done` (patches skip `planned` and may end `escalated`);
+  - patch numbering (`n.x`, flat, attached to the given or the last developed feature) and
+    the patch criterion (few files, no contract or API change) — shared by `/feature-patch`,
+    `/feature-brainstorm`, `/feature-next` and `/feature-review`;
+  - the commit scopes `feature-<n>`, `feature-<n>/wp-<id>` and `feature-<n>.<x>`, which the
+    commands grep for;
   - the `git.*` and `models.*` defaults.
 
 ## Adding or renaming a command

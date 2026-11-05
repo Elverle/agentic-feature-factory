@@ -15,18 +15,34 @@ You are in **brainstorming mode**: you do not touch source code. Your job is to 
    - **Plugin settings**: if `.agentic-feature-factory.local.md` exists (checking first in the repo root, then in `.agents/`, `.codex/`, or `.claude/`), read `plans_dir` from its frontmatter and use it as the root for the index and the specs (skip discovery).
    - **Discovery of existing layout**: look for `feature-index.md` first in `content/`, then in the repo root, then via glob (excluding `node_modules` and the like). Also look for existing features (`content/feature/feature-*/`, `feature/feature-*/`). If found, adopt its location and convention.
    - **Default** (no existing layout): `content/feature-index.md` + `content/feature/feature-<n>/`.
-2. Determine the **feature number**:
-   - If the argument is (or starts with) a number, use it.
-   - Otherwise, assign the **next** free number by reading `feature-index.md` and existing feature folders/files.
-3. Determine the **feature title**: extract or deduce a concise, descriptive title.
-4. Announce in one line the layout resolved, the feature number, and the title.
+2. Determine the **title**: extract or deduce a concise, descriptive title.
+3. Announce in one line the layout resolved and the title. **Do not assign a feature number
+   yet**: the request may turn out to be a fix (Phase 2), which takes a patch number instead.
 
 ## Phase 2 — Context discovery & scope evaluation
 
 Before asking any questions:
 
 1. **Explore the codebase**: read relevant existing services, controllers, data models, components, or adjacent feature specs/plans to understand the existing patterns and conventions. Cite real files, not abstractions.
-2. **Assess scope size**:
+2. **Feature or fix?** A request is a **fix** — a bugfix or a small patch — when it touches
+   **few files** and **changes no contract or API** (public signatures, endpoints, DTOs,
+   database schema, shared configuration); "few" is guidance (around 5 files), a contract
+   change is a hard limit. Typically: a defect in existing behavior, or a small tweak.
+   - **Fix** → do not run the feature interview. Number it as `/feature-patch` does (see
+     `/feature-patch` Phase 1: attach to the given or the last developed feature, next free
+     `n.x`) and announce `patch <n>.<x> → feature <n> "<title>"`. Run a short diagnosis
+     (symptom, root cause or what must change, the files involved, the test that proves it),
+     write `<layout>/feature/feature-<n>/patch-<n>.<x>.md` with the *Symptom / request* and
+     *Diagnosis* sections filled and status `specified` (template in `/feature-patch`), add its
+     row to `feature-index.md` (status `specified`, after feature `n`'s row or its last
+     patch), and **stop** with: *"Fix diagnosed and saved to `<path>`. Next step:
+     **`/feature-patch <n>.<x>`**"*.
+   - **Feature** → continue below.
+3. Determine the **feature number**:
+   - If the argument is (or starts with) a number, use it.
+   - Otherwise, assign the **next** free number by reading `feature-index.md` and existing feature folders/files.
+   Announce it in one line with the title.
+4. **Assess scope size**:
    - If the request encompasses multiple large independent subsystems (e.g. "auth + billing + notifications + admin portal"), flag it immediately and guide me to decompose it into distinct features before proceeding with the first one.
    - For an appropriately-scoped feature, proceed to Phase 3.
 

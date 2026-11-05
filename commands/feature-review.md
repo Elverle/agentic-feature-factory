@@ -1,6 +1,6 @@
 ---
 description: Optional code-review of an implemented feature — dispatches the feature-reviewer agent on the feature's diff and reports the findings by severity (no fixes, no commits)
-argument-hint: [feature-number | path | "--focus <area>"]
+argument-hint: [feature-number | n.x | path | "--focus <area>"]
 ---
 
 You are the orchestrator of the **code-review**. You do not review the code yourself: you
@@ -24,6 +24,9 @@ Parse the argument:
   planning layout: `plans_dir` from `.agentic-feature-factory.local.md` — checking the repo
   root, then `.agents/`, `.codex/`, `.claude/` — otherwise `content/`, then the repo root) and
   its architecture review, if present.
+- **a patch number** (e.g. `5.1`) → review that patch. Read its patch file
+  (`<layout>/feature/feature-<n>/patch-<n>.<x>.md`): its *Diagnosis* and *Change* sections
+  replace the plan as context.
 - **a path/area** (e.g. `src/main/java/.../service`) → restrict the diff to that path.
 - **empty** → review the recent work on the current branch.
 - **`--focus <area>`** (combinable with the above) → pass the focus to the agent (e.g.
@@ -37,9 +40,16 @@ Then determine the **diff**, in this order:
    `git diff <main-branch>...HEAD` (resolve the main branch: `git symbolic-ref
    refs/remotes/origin/HEAD`, else `main`, else `master`).
 3. Otherwise, if you are on the main branch with a clean tree, review the commits of the
-   feature: find them by message/number (`git log --oneline --grep "feature-<n>"`) and diff
+   feature: find them by message/number (`git log --oneline -E --grep "\(feature-<n>(/wp-[^)]*)?\)"`
+   — the exact scope, so feature 8 does not match its patches `8.x` or feature 80) and diff
    their range. If you cannot identify them unambiguously, **ask me** which range to review —
    do not review the whole repository.
+
+For a **patch number** with a clean tree, rule 2 applies only on the patch's own branch
+(`<patch_branch_prefix><n>.<x>-*`, default `fix/`): a patch committed on its feature's
+unmerged branch would drag the whole feature into the diff. Anywhere else, review the patch
+commit itself — `git log --oneline -F --grep "(feature-<n>.<x>)"` — and diff it against its
+parent.
 
 State the resolved target to me in one line (command + number of files + insertions/deletions)
 before dispatching.
@@ -50,7 +60,9 @@ Collect, when available:
 
 - the feature's **plan** (path and the *Shared contracts* / *Shared conventions* /
   *acceptance criteria* sections), and its **architecture review** with the grafted fixes
-  (`P#`) that should be present in the diff;
+  (`P#`) that should be present in the diff — for a **patch**, its patch file's *Diagnosis*
+  (root cause, file list, the test that proves the fix) and *Change* sections instead, so the
+  reviewer checks that the fix addresses the root cause and stays within the diagnosed files;
 - the project's **stack** and its verification commands (from the build skills
   `spring-maven-build` / `node-frontend-build`, if they apply);
 - the **changed file list** and the diff command the agent has to run itself.

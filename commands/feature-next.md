@@ -1,6 +1,6 @@
 ---
 description: Reads the project's feature state (index, feature folders, git branches, working tree) and tells you the natural next step — the exact command to run and why — then offers to launch it
-argument-hint: [feature-number] (empty = whole project)
+argument-hint: [feature-number | n.x] (empty = whole project)
 ---
 
 You are the **navigator** of the agentic feature pipeline. Your job is to work out where the
@@ -9,8 +9,8 @@ with the evidence behind it. You do **not** build, plan or document anything you
 until I confirm a launch you are **read-only**: no file edits, no index updates, no git
 commands that change state (no checkout, commit, stash, merge, push).
 
-Scope: **$ARGUMENTS** — a feature number focuses on that feature; empty means the whole
-project.
+Scope: **$ARGUMENTS** — a feature number focuses on that feature (and its patches), a patch
+number `n.x` on that patch; empty means the whole project.
 
 ## The pipeline you navigate
 
@@ -25,6 +25,17 @@ project.
 | `reviewed` | review ran (index status), branch not merged into main | open a PR / merge — **your call, never mine** |
 | `done` | feature branch merged into main, or status `done` | nothing for this feature |
 
+**Patches** (`n.x`, from `/feature-patch` or `/feature-brainstorm`) have their own, shorter path:
+
+| Patch stage | Evidence | Natural next step |
+| --- | --- | --- |
+| `specified` | `patch-n.x.md` with a diagnosis only, no patch branch or commit | `/feature-patch n.x` |
+| `in-progress` | patch branch (or feature `n`'s unmerged branch) without the patch commit, or the patch file's *Change* section filled but no *Commit* | `/feature-patch n.x` (it resumes) |
+| `implemented` | patch commit present, no review | `/feature-review n.x` (optional), otherwise merge/PR |
+| `reviewed` | review ran, branch not merged into main | open a PR / merge — **your call, never mine** |
+| `done` | patch commit merged into main, or status `done` | nothing |
+| `escalated` | status `escalated` | nothing for the patch — follow the feature it became |
+
 ## Phase 1 — Resolve the layout and settings
 
 1. **Planning layout**: if `.agentic-feature-factory.local.md` exists (checking first in the
@@ -32,7 +43,8 @@ project.
    frontmatter; otherwise look for `feature-index.md` first in `content/`, then in the repo
    root, then anywhere (glob, excluding `node_modules` and the like), and for feature folders
    (`content/feature/feature-*/`, legacy `content/feature-*-plan.md`, `feature/feature-*/`).
-2. **Git settings**: `git.branch_prefix` from the same file (default `feature/`). Resolve the
+2. **Git settings**: `git.branch_prefix` (default `feature/`) and `git.patch_branch_prefix`
+   (default `fix/`) from the same file. Resolve the
    main branch (`git symbolic-ref refs/remotes/origin/HEAD`, else `main`, else `master`).
 3. **No layout at all** (no index, no feature folders): the project has not used the pipeline
    yet. Say so, and the next step is `/feature-brainstorm <description>` — or
@@ -51,6 +63,10 @@ was given):
   (`git log <main>..<branch> --oneline`), and whether one of them is the feature commit
   (`feat(feature-<n>)…` or the project's equivalent subject); whether the branch is merged
   into main (`git branch --merged <main>`).
+- **Patches**: every `patch-n.*.md` in the feature's folder and every `n.x` index row — the
+  patch file's status and which of its sections are filled; whether a branch
+  `<patch_branch_prefix><n>.<x>-*` exists; whether the patch commit
+  (`<type>(feature-<n>.<x>)…`) exists, on which branch, and whether it is merged into main.
 
 Then, once, for the project:
 
@@ -63,25 +79,29 @@ explore the codebase.
 
 ## Phase 3 — Derive each feature's stage
 
-Map the evidence onto the table above. **Evidence beats the index**: if the index says
-`planned` but the branch carries the feature commit, the stage is `implemented`. Record every
-mismatch between the index status and the detected stage as **index drift** — report it, do
-not fix it.
+Map the evidence onto the tables above (features and patches alike). **Evidence beats the
+index**: if the index says `planned` but the branch carries the feature commit, the stage is
+`implemented`. Record every mismatch between the index status and the detected stage as
+**index drift** — report it, do not fix it.
 
 Then choose **the** next step:
 
-1. **Single feature** (a number was given): the next step of that feature's stage.
+1. **Single feature or patch** (a number was given): the next step of its stage — for a
+   feature number, an open patch of that feature comes first.
 2. **Whole project**, first match wins:
    1. **Dirty working tree with unrelated changes** → deal with them first (commit or stash —
       your call): the pipeline commits per feature and must not mix them in.
-   2. A feature `in-progress` → resume it. The pipeline develops **one feature at a time**;
-      if more than one is in progress, pick the one on the current branch, else the lowest
-      number, and flag the others.
-   3. A feature `implemented` or `reviewed` but not merged → close it (review, then PR/merge).
-   4. The lowest-numbered `reviewed-plan`, then `planned`, then `specified`, then `idea`
+   2. A feature or patch `in-progress` → resume it. The pipeline works on **one thing at a
+      time**; if more than one is in progress, pick the one on the current branch, else the
+      lowest number, and flag the others.
+   3. A feature or patch `implemented` or `reviewed` but not merged → close it (review, then
+      PR/merge).
+   4. A `specified` patch (a diagnosed fix waiting) → `/feature-patch n.x`: fixes to what is
+      built come before new features.
+   5. The lowest-numbered `reviewed-plan`, then `planned`, then `specified`, then `idea`
       feature — unless the plan or the architecture review declares an ordering between
       features (dependencies, shared files): that ordering wins.
-   5. Everything `done` → a new feature: `/feature-brainstorm <description>`.
+   6. Everything `done` → a new feature: `/feature-brainstorm <description>`.
 
 Secondary suggestions (at most 3), only when the evidence supports them: a skipped
 `/feature-review` on a finished feature, `/feature-docs lint` if the wiki exists and features
