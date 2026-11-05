@@ -68,6 +68,19 @@ test('manifests agree on name and version', () => {
   assert.ok(marketplace.plugins.some((p) => p.name === plugin.name), 'marketplace does not list the plugin');
 });
 
+test('every git setting in the example file is documented in the README', () => {
+  const example = readText('.agentic-feature-factory.local.example.md');
+  const gitBlock = example.match(/^git:\r?\n((?:[ \t]+.*\r?\n)+)/m);
+  assert.ok(gitBlock, 'no git: block in the example settings file');
+  const keys = [...gitBlock[1].matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
+  assert.ok(keys.length > 0, 'no keys under git:');
+  const readme = readText('README.md');
+  for (const key of keys) {
+    // Table rows may be indented (the git table sits inside a list item).
+    assert.match(readme, new RegExp(`^\\s*\\|\\s*\`${key}\`\\s*\\|`, 'm'), `README has no table row for git.${key}`);
+  }
+});
+
 test('the CHANGELOG has an entry for the current version', () => {
   const { version } = readJson('package.json');
   assert.match(readText('CHANGELOG.md'), new RegExp(`^## \\[${version.replace(/\./g, '\\.')}\\]`, 'm'));

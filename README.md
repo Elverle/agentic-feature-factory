@@ -365,6 +365,7 @@ git:
   auto_commit: false      # true: commit without asking for confirmation
   commit_per_wp: false    # true: also one commit per work package, on a green gate only
   branch_prefix: feature/ # dedicated branch: <branch_prefix><feature-number>-<slug>
+  patch_branch_prefix: fix/  # patch branch: <patch_branch_prefix><n>.<x>-<slug>
   version_bump: ask       # ask | patch | minor | none — before the feature commit
 
 # Optional: configure model tiers per platform
@@ -425,6 +426,7 @@ any drift between the two.
   | `auto_commit` | `false` | `true`: `/feature-dev` commits without asking. `false`: it shows you the files and the message and waits |
   | `commit_per_wp` | `false` | `true`: one commit per work package too, made only after that wave's gate is green |
   | `branch_prefix` | `feature/` | The dedicated branch is `<prefix><feature-number>-<slug>`; the pipeline never commits on `main`/`master` |
+  | `patch_branch_prefix` | `fix/` | Branch for `/feature-patch`: `<prefix><n>.<x>-<slug>`; a patch to a feature not merged yet goes on that feature's branch instead |
   | `version_bump` | `ask` | `ask`: proposes the new version and waits. `patch`/`minor`: applies it silently. `none`: skips the bump |
 
   Pushing and opening a PR are **never** automatic: you ask for them explicitly.
