@@ -41,7 +41,9 @@ feature and goes through the full workflow (see *Escalation*).
      `n.<next>` instead.
 3. **Last developed feature** — resolve it from **git first**: the feature whose commit
    (`feat(feature-<n>)…` or the project's equivalent subject) is the most recent across
-   branches (`git log --all --grep "feature-" --format="%ad %s" --date=iso`). The index's
+   branches (`git log --all -E --grep "\(feature-[0-9]+\)" --format="%ad %s" --date=iso` —
+   feature commits only: patch commits `(feature-<n>.<x>)` and per-WP commits do not count, or
+   a late fix to an old feature would hijack the attachment). The index's
    `Date` column records when a row was created, not when the feature closed, so use it only
    as the fallback: the highest-numbered feature with status `implemented`, `reviewed` or
    `done`. If nothing qualifies, ask me which feature the patch belongs to.
