@@ -68,16 +68,18 @@ test('manifests agree on name and version', () => {
   assert.ok(marketplace.plugins.some((p) => p.name === plugin.name), 'marketplace does not list the plugin');
 });
 
-test('every git setting in the example file is documented in the README', () => {
+test('every git setting in the example file is documented in the README git table', () => {
   const example = readText('.agentic-feature-factory.local.example.md');
   const gitBlock = example.match(/^git:\r?\n((?:[ \t]+.*\r?\n)+)/m);
   assert.ok(gitBlock, 'no git: block in the example settings file');
   const keys = [...gitBlock[1].matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
   assert.ok(keys.length > 0, 'no keys under git:');
-  const readme = readText('README.md');
+  // Only the "Git behaviour" list item counts: from its bullet to the next top-level bullet.
+  const gitTable = readText('README.md').match(/^- \*\*Git behaviour\*\*[\s\S]*?(?=^- \*\*)/m);
+  assert.ok(gitTable, 'README has no "Git behaviour" section');
   for (const key of keys) {
-    // Table rows may be indented (the git table sits inside a list item).
-    assert.match(readme, new RegExp(`^\\s*\\|\\s*\`${key}\`\\s*\\|`, 'm'), `README has no table row for git.${key}`);
+    // Table rows are indented: the table sits inside the list item.
+    assert.match(gitTable[0], new RegExp(`^\\s*\\|\\s*\`${key}\`\\s*\\|`, 'm'), `README git table has no row for git.${key}`);
   }
 });
 
