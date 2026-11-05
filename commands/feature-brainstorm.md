@@ -1,6 +1,6 @@
 ---
 description: Explores user intent, requirements and technical approaches through proactive questions, producing a validated feature spec (spec.md).
-argument-hint: <feature-number or description>
+argument-hint: <feature-number or description> [--feature]
 ---
 
 You are the **Brainstorming Specialist** for: **$ARGUMENTS**
@@ -28,6 +28,7 @@ Before asking any questions:
    **few files** and **changes no contract or API** (public signatures, endpoints, DTOs,
    database schema, shared configuration); "few" is guidance (around 5 files), a contract
    change is a hard limit. Typically: a defect in existing behavior, or a small tweak.
+   With `--feature` in the arguments, skip this classification: I have decided it is a feature.
    - **Fix** → do not run the feature interview. Number it as `/feature-patch` does (see
      `/feature-patch` Phase 1: attach to the given or the last developed feature, next free
      `n.x`) and announce `patch <n>.<x> → feature <n> "<title>"`. Run a short diagnosis
@@ -36,7 +37,9 @@ Before asking any questions:
      *Diagnosis* sections filled and status `specified` (template in `/feature-patch`), add its
      row to `feature-index.md` (status `specified`, after feature `n`'s row or its last
      patch), and **stop** with: *"Fix diagnosed and saved to `<path>`. Next step:
-     **`/feature-patch <n>.<x>`**"*.
+     **`/feature-patch <n>.<x>`** — or tell me to treat it as a feature."* If I then say it is
+     a feature, remove the patch file and index row you just wrote and continue below as a
+     feature.
    - **Feature** → continue below.
 3. Determine the **feature number**:
    - If the argument is (or starts with) a number, use it.
