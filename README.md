@@ -4,6 +4,9 @@ Agent-driven feature development pipeline for **Claude Code**, **Google Antigrav
 
 **brainstorm → plan → architecture review → implement (orchestrated) → review (optional) → document → commit**
 
+Lost track of where a feature stands? `/feature-next` reads the project's state and tells you
+the next command to run.
+
 It works on **backend** (Spring Boot + Maven) and **frontend** (React / Next / Vite)
 projects alike: the pipeline is stack-neutral and adapts the verification gate to the
 project's stack.
@@ -22,6 +25,7 @@ project's stack.
 - [Planning layout](#planning-layout-settings-discovery-default)
 - [Configuration](#configuration)
 - [Design notes](#design-notes)
+- [Developing the plugin](#developing-the-plugin)
 
 ## Requirements
 
@@ -30,7 +34,7 @@ project's stack.
   - **Google Antigravity** (IDE / Desktop) or **AGY CLI**
   - **OpenAI Codex** (CLI with multi-agent feature enabled)
   - **GitHub Copilot** (VS Code Copilot Chat or Copilot CLI)
-- **Runtime for Adapter CLI**: Node.js 18+, Bun, or Deno (zero dependencies).
+- **Runtime for Adapter CLI**: Node.js 20+, Bun, or Deno (zero dependencies).
 - **Backend projects**: JDK and Maven for the `mvn verify` gate, plus a running **Docker**
   daemon if the project has Testcontainers integration tests.
 - **Frontend projects**: Node.js and the project's package manager (pnpm / yarn / npm / bun — the
@@ -69,8 +73,6 @@ aff <target>
 
 ---
 
-### Platform-Specific Setup
-
 Run the adapter for your target platform (by default, it installs globally on your machine so you can use the factory across all your projects):
 
 ### 1. Google Antigravity & AGY CLI
@@ -85,7 +87,7 @@ bun run adapt antigravity
 npm run adapt antigravity
 ```
 
-The skills (`feature-plan`, `feature-dev`, `arch-review`, `feature-review`, `feature-docs`, `spring-maven-build`, `node-frontend-build`) are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
+Every command becomes a skill (`feature-brainstorm`, `feature-plan`, `arch-review`, `feature-dev`, `feature-review`, `feature-docs`, `feature-next`), alongside the build skills `spring-maven-build` and `node-frontend-build`; they are immediately discovered by both Antigravity IDE and AGY CLI. You can invoke them naturally (e.g. *"Plan feature 5"*) or via slash commands (e.g. `/feature-plan 5`).
 
 ### 2. OpenAI Codex
 
@@ -114,23 +116,33 @@ bun run adapt copilot
 bun run adapt copilot --scope project
 ```
 
-In VS Code Copilot Chat or Copilot CLI, type `/` to access `/feature-plan`, `/feature-dev`, `/arch-review`, `/feature-review`, and `/feature-docs`.
+In VS Code Copilot Chat or Copilot CLI, type `/` to access every command (`/feature-brainstorm`, `/feature-plan`, `/arch-review`, `/feature-dev`, `/feature-review`, `/feature-docs`, `/feature-next`).
 
 ### 4. Claude Code
 
-Install directly via the Claude Code marketplace or use the adapter:
+Claude Code loads plugins from a registered **marketplace** (it snapshots them into
+`~/.claude/plugins/cache/`), so there is nothing to copy — only to register.
 
-**From GitHub**:
+**From GitHub** (recommended):
 ```
 /plugin marketplace add Elverle/agentic-feature-factory
 /plugin install agentic-feature-factory@agentic-feature-factory
 ```
 
-**Via Adapter**:
+**From your local clone** (to use your own edits):
 ```bash
-bun run adapt claude
-# or: npm run adapt claude
+npm run adapt claude                    # or: bun run adapt claude
 ```
+
+The adapter registers the clone as a `directory` marketplace and enables the plugin in
+`~/.claude/settings.json` (merging with your settings, never overwriting them). With
+`--scope project` it writes the GitHub source into the current project's
+`.claude/settings.json` instead, so everyone on the team gets the plugin. Restart Claude Code
+afterwards; if `/help` does not list the commands, run
+`/plugin install agentic-feature-factory@agentic-feature-factory`.
+
+Model tiers (`models.claude.*`) need no install step: `/feature-dev` and `/feature-review`
+read them at dispatch time.
 
 ### All Platforms at Once
 
@@ -141,8 +153,8 @@ bun run adapt all
 
 ### Updating an existing installation
 
-The adapters **copy** the commands, agents and skills into each platform's directory: an
-installed copy does not follow this repository. Every time you pull a new version — or edit a
+The adapters for Antigravity, Codex and Copilot **copy** the commands, agents and skills into
+each platform's directory: an installed copy does not follow this repository. Every time you pull a new version — or edit a
 command/agent yourself — re-run the adapter for the platforms you use:
 
 ```bash
@@ -157,10 +169,10 @@ Where each platform reads them from, and what a re-run refreshes:
 | Antigravity & AGY CLI | `~/.gemini/config/plugins/agentic-feature-factory/` (`skills/`, `rules/AGENTS.md`) | `npm run adapt antigravity` |
 | OpenAI Codex | `~/.codex/agents/`, `~/.codex/prompts/` | `npm run adapt codex` |
 | GitHub Copilot | `~/.copilot/prompts/` (or `.github/prompts/` with `--scope project`) | `npm run adapt copilot` |
-| Claude Code (adapter) | `~/.claude/plugins/agentic-feature-factory/` | `npm run adapt claude` |
+| Claude Code | `~/.claude/plugins/cache/agentic-feature-factory/` (marketplace snapshot) | `/plugin marketplace update agentic-feature-factory` (see below) |
 
-**Claude Code installed from the marketplace** needs one more step, because the plugin is
-pinned to the snapshot taken at install time:
+**Claude Code** — from GitHub or from a local clone alike — runs the snapshot taken at install
+time, so refresh it:
 
 ```
 /plugin marketplace update agentic-feature-factory
@@ -169,15 +181,15 @@ pinned to the snapshot taken at install time:
 Then **restart the session** — plugin commands and agents are loaded at startup. Check with
 `/help` that the new commands are there (e.g. `/feature-review`).
 
-> `--mode link` symlinks the build skills and manifests instead of copying them, but commands
-> and agents are always written out because the adapter injects their `model:` frontmatter — so
-> a re-run stays necessary for those.
+> `--mode link` symlinks the build skills instead of copying them, but commands and agents are
+> always written out because the adapter injects their `model:` frontmatter — so a re-run
+> stays necessary for those.
 
 A new version may also add **settings keys** (e.g. the `git.*` block in 1.4.0). They are always
 optional: the documented defaults apply when a key is missing, so an existing
 `.agentic-feature-factory.local.md` keeps working untouched.
 
-### Quick start: one full cycle
+## Quick start: one full cycle
 
 Let's develop **feature 5** in a freshly cloned repo with no planning layout yet.
 
@@ -258,6 +270,16 @@ The orchestrator starts from `content/feature/feature-5/plan.md` plus the review
    `auto_commit: true`, and **never pushing** unless you ask;
 6. closes, updating `feature-index.md`.
 
+If a run is interrupted, `/feature-dev 5` picks up from the first work package not yet ticked
+in the plan's checklist.
+
+### At any point — `/feature-next`
+
+Reads the index, the feature folders, the branches and the working tree, and tells you the
+natural next step with its evidence — e.g. *"`/feature-dev 5`: plan and architecture review
+present, no feature branch yet"*. It flags index rows that disagree with what is on disk,
+then offers to launch the command for you. It never merges, pushes or opens PRs.
+
 ### The flow at a glance
 
 ```
@@ -271,6 +293,8 @@ The orchestrator starts from `content/feature/feature-5/plan.md` plus the review
                                                        /feature-review 5   (optional, standalone)
                                                          feature-reviewer on the diff
                                                          → findings by severity, triage is yours
+
+/feature-next   (any time) reads the project's state → the next command, offered to launch
 ```
 
 ## What's inside
@@ -283,6 +307,7 @@ The orchestrator starts from `content/feature/feature-5/plan.md` plus the review
 | `/feature-dev <n> [plan-path]` | command / skill | Orchestrates Implementer subagents and verification gates, offers the optional review, then documentation, version bump and commit on a dedicated branch |
 | `/feature-review [n\|path]` | command / skill | **Optional, standalone** code-review: dispatches `feature-reviewer` on the feature's diff and reports findings by severity — no fixes, no commits |
 | `/feature-docs [scope]` | command / skill | Documents in wiki format via `feature-documenter` (feature / area / `lint`) and updates the project README when something user-facing changed, standalone |
+| `/feature-next [n]` | command / skill | Reads the project's feature state (index, feature folders, branches, working tree) and tells you the next command to run, then offers to launch it; read-only until you confirm |
 | `implementer` | agent | Executes ONE work package test-driven, within the WP's file boundaries; dispatched in parallel by `/feature-dev` |
 | `feature-documenter` | agent | Updates the project wiki (and the README, when the feature is user-facing) adopting the **project's** conventions (AGENTS.md/CLAUDE.md/GEMINI.md → existing wiki format → default structure) |
 | `feature-reviewer` | agent | Reviews a feature's diff for correctness, security, silent failures, performance, tests and contract drift; read-only, reports findings by severity |
@@ -348,10 +373,16 @@ references** — they never create a second index. If multiple conflicting conve
 ├── feature-index.md                    # registry: number, title, status, link to the plan
 └── feature/
     └── feature-<n>/
+        ├── spec.md                     # validated spec (output of /feature-brainstorm, optional)
         ├── requirements.md             # decisions from /feature-plan's questions
         ├── plan.md                     # WP plan (output of /feature-plan, input of /feature-dev)
         └── architecture-review-<date>.md   # feature review (output of /arch-review <n>)
 ```
+
+**Feature status** in the index follows the pipeline: `specified` (`/feature-brainstorm`) →
+`planned` (`/feature-plan`) → `in-progress` → `implemented` (`/feature-dev`) → `reviewed` →
+`done`. `/feature-next` trusts the evidence on disk and in git over the index, and reports
+any drift between the two.
 
 ## Configuration
 
@@ -410,6 +441,18 @@ references** — they never create a second index. If multiple conflicting conve
   interfaces.
 - **Portability.** The commands hardcode no project's pain points or paths: they resolve the
   planning layout at runtime (settings file → discovery → default).
+
+## Developing the plugin
+
+The `.md` files in `commands/`, `agents/` and `skills/` are the source of truth; the adapter
+generates every platform's copy from them. Before opening a PR:
+
+```bash
+npm test        # registry ↔ files, README coverage, manifest versions, adapter output
+```
+
+Contributor rules (adding a command, releasing a version, language) are in
+[AGENTS.md](AGENTS.md); release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

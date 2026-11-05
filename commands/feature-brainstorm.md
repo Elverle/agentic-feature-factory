@@ -76,7 +76,7 @@ Before writing the final file, perform an internal self-review on the specificat
 1. Save the specification document to:
    **`<resolved-layout>/feature/feature-<n>/spec.md`** (default: `content/feature/feature-<n>/spec.md`).
 2. Update the **`feature-index.md`**:
-   - Add/update the row with status `specified` (or `planned` if following the standard 4-state table `# | Title | Status | Date | Plan`).
+   - Add/update the row with status `specified`, respecting the index's existing column schema (default: `# | Title | Status | Date | Plan`).
 3. Conclude with a clear handoff message:
    > "Feature specification complete and saved to `<path-to-spec.md>`.
    > To turn this specification into executable work packages, run:
