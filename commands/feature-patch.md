@@ -43,10 +43,10 @@ feature and goes through the full workflow (see *Escalation*).
    (`feat(feature-<n>)…` or the project's equivalent subject) is the most recent across
    branches (`git log --all -E --grep "\(feature-[0-9]+\)" --format="%ad %s" --date=iso` —
    feature commits only: patch commits `(feature-<n>.<x>)` and per-WP commits do not count, or
-   a late fix to an old feature would hijack the attachment). The index's
-   `Date` column records when a row was created, not when the feature closed, so use it only
-   as the fallback: the highest-numbered feature with status `implemented`, `reviewed` or
-   `done`. If nothing qualifies, ask me which feature the patch belongs to.
+   a late fix to an old feature would hijack the attachment). The index's `Date` column
+   records when a row was created, not when the feature closed, so use it only as the
+   fallback: the highest-numbered feature with status `implemented`, `reviewed` or `done`. If
+   nothing qualifies, ask me which feature the patch belongs to.
 4. **Next free number** `x` — one more than the highest `n.*` found in **both** the index rows
    and the existing `patch-n.*.md` files (a file without a row still takes its number).
    Numbering is flat: a fix to patch `8.1` is `8.2`, never `8.1.1`.
@@ -69,18 +69,12 @@ from it and **verify it against the code** — real code wins.
 ## Phase 3 — Size check
 
 Apply the criterion above to the diagnosis. If it is not a patch, go to *Escalation*.
-Otherwise:
+Otherwise show me the diagnosis in a few lines and proceed.
 
-- write the **patch file** with *Symptom / request* and *Diagnosis* filled (template below),
-  status `in-progress`;
-- add (or update) the patch's **row in `feature-index.md`**, respecting the index's existing
-  column schema, placed right after feature `n`'s row or after its last patch row:
-  `| <n>.<x> | <title> | in-progress | <date> | patch-<n>.<x>.md |` in the default schema;
-- show me the diagnosis in a few lines and proceed.
+## Phase 4 — Branch and trace
 
-## Phase 4 — Branch
-
-Never commit on the main branch. Before any code is written:
+Never commit on the main branch. Resolve the branch **before writing anything** — your own
+patch file must not be what makes the working tree dirty:
 
 - if **feature `n`'s branch** (`<branch_prefix><n>-*`, default prefix `feature/`) exists and is
   **not merged** into main, the patch goes **on that branch** — the fix belongs to the
@@ -91,7 +85,16 @@ Never commit on the main branch. Before any code is written:
   before switching.
 
 If switching branch with a **dirty working tree**, stop and ask me what to do with the changes:
-never stash them, never carry them over silently.
+never stash them, never carry them over silently. (Resuming `n.x`: its own patch file and
+index row, if uncommitted, are part of the patch — carry those over; anything else is not.)
+
+Then, on the patch's branch, write the trace:
+
+- the **patch file** with *Symptom / request* and *Diagnosis* filled (template below), status
+  `in-progress`;
+- the patch's **row in `feature-index.md`** (add or update), respecting the index's existing
+  column schema, placed right after feature `n`'s row or after its last patch row:
+  `| <n>.<x> | <title> | in-progress | <date> | patch-<n>.<x>.md |` in the default schema.
 
 ## Phase 5 — Implementation and gate
 
@@ -162,7 +165,7 @@ When the size check fails (Phase 3 or the growth check):
 
 - set the patch's status to `escalated` in the patch file and the index row — writing both
   first, with *Symptom / request* and *Diagnosis* filled, if the size check failed before
-  Phase 3 created them. The diagnosis is kept: it becomes the planning input;
+  Phase 4 wrote them. The diagnosis is kept: it becomes the planning input;
 - propose `/feature-plan <next-feature-number> <path-to-patch-file>` (or `/feature-brainstorm`
   if the picture is unclear);
 - **commit nothing**. If the implementer already changed files, list them to me and leave the
