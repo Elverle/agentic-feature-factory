@@ -34,11 +34,16 @@ feature and goes through the full workflow (see *Escalation*).
    `master`).
 2. **Parse the argument** — three forms:
    - `<description>` → attach to the **last developed feature**, next free number;
-   - `<n> <description>` → attach to feature `n`, next free number;
+   - `<n> <description>` → attach to feature `n`, next free number. If feature `n` does not
+     exist or is not implemented yet (no feature commit, index status before `implemented`),
+     ask me: a patch fixes built code, and the number may have been meant for a new feature;
    - `<n>.<x>` → **resume** patch `n.x` (one created by `/feature-brainstorm`, or an interrupted
-     run): read its patch file and continue from the first phase whose section is still empty.
-     If `n.x` is `done` or `escalated`, do not redo it: tell me, and propose a new patch
-     `n.<next>` instead.
+     run) from its patch file. When resuming, **always run Phase 4** (branch resolution,
+     reusing the patch's existing branch) before touching anything. A `specified` patch then
+     starts at Phase 2 (verify the diagnosis against the code, then the size check); an
+     `in-progress` one continues from the first empty section among *Change*, *Verification*,
+     *Review*, *Docs*, *Commit*. If `n.x` is `done` or `escalated`, do not redo it: tell me,
+     and propose a new patch `n.<next>` instead.
 3. **Last developed feature** — resolve it from **git first**: the feature whose commit
    (`feat(feature-<n>)…` or the project's equivalent subject) is the most recent across
    branches (`git log --all -E --grep "\(feature-[0-9]+\)" --format="%ad %s" --date=iso` —
@@ -47,8 +52,12 @@ feature and goes through the full workflow (see *Escalation*).
    records when a row was created, not when the feature closed, so use it only as the
    fallback: the highest-numbered feature with status `implemented`, `reviewed` or `done`. If
    nothing qualifies, ask me which feature the patch belongs to.
-4. **Next free number** `x` — one more than the highest `n.*` found in **both** the index rows
-   and the existing `patch-n.*.md` files (a file without a row still takes its number).
+4. **Next free number** `x` — one more than the highest `n.*` found anywhere a patch can live,
+   because a patch committed on an unmerged branch is invisible from main:
+   - the index rows and the `patch-n.*.md` files in this checkout (a file without a row still
+     takes its number);
+   - the branches `<patch_branch_prefix><n>.*` (local and remote);
+   - the patch commits on every branch: `git log --all -E --grep "\(feature-<n>\.[0-9]+\)"`.
    Numbering is flat: a fix to patch `8.1` is `8.2`, never `8.1.1`.
 5. **Announce** in one line, before writing anything: `patch <n>.<x> → feature <n> "<title>"`
    (and, when the feature was inferred, how). I may correct it.
@@ -76,13 +85,21 @@ Otherwise show me the diagnosis in a few lines and proceed.
 Never commit on the main branch. Resolve the branch **before writing anything** — your own
 patch file must not be what makes the working tree dirty:
 
-- if **feature `n`'s branch** (`<branch_prefix><n>-*`, default prefix `feature/`) exists and is
-  **not merged** into main, the patch goes **on that branch** — the fix belongs to the
-  unreleased feature, and a branch from main would not even contain its code;
-- otherwise, create `<patch_branch_prefix><n>.<x>-<slug>` (default `fix/<n>.<x>-<slug>`, slug
-  from the patch title, kebab-case) from the main branch;
+- if **feature `n`'s branch** (`<branch_prefix><n>-*`, default prefix `feature/`) exists and
+  feature `n` is **not released**, the patch goes **on that branch** — the fix belongs to the
+  unreleased feature, and a branch from main would not even contain its code. Feature `n`
+  counts as **released** when its index status is `done`, or its feature commit is reachable
+  from main (`git log <main> -E --grep "\(feature-<n>\)"`), or its branch is merged
+  (`git branch --merged <main>`) — squash and rebase merges leave the branch looking unmerged,
+  so never rely on the branch test alone;
+- otherwise, use `<patch_branch_prefix><n>.<x>-*` if it already exists (an interrupted run),
+  else create `<patch_branch_prefix><n>.<x>-<slug>` (default `fix/<n>.<x>-<slug>`, slug from
+  the patch title, kebab-case) from the main branch;
 - if you are already on that branch, stay; if you are on any other non-main branch, **ask me**
   before switching.
+
+Announce the chosen branch in one line (and why, when it is the feature's branch), so I can
+correct it.
 
 If switching branch with a **dirty working tree**, stop and ask me what to do with the changes:
 never stash them, never carry them over silently. (Resuming `n.x`: its own patch file and
@@ -137,27 +154,34 @@ Never run it on your own initiative. Record the outcome in the *Review* section.
 Only if the patch touches something **documented** — the wiki page of the affected area, a
 behavior the README describes, a configuration key — dispatch the **`feature-documenter`**
 sub-agent (Agent tool in Claude, `invoke_subagent` in Antigravity, `spawn_agent` in Codex) in
-**document area** mode, passing it the patch file, the files touched, the `wiki_dir` if set,
-and its convention hierarchy as in `/feature-dev` Phase 7. Otherwise skip it and say
-*"docs skipped: nothing documented changed"*.
+**document feature** mode, as in `/feature-dev` Phase 7 — including its README check — but
+passing the **patch file in place of the plan**, the files touched (`git diff`), the
+`wiki_dir` if set, and the instruction to update **only the pages and README sections the
+diff affects** (a patch is not a reason to re-document an area). Otherwise skip it and say
+*"docs skipped: nothing documented changed"*. Either way, record the outcome in the *Docs*
+section.
 
 ## Phase 8 — Version bump and commit
+
+If you are on the main branch, stop: go back to Phase 4 — a patch is never committed on main,
+whatever path led here.
 
 1. **Version bump** — per `version_bump` (`ask` → propose, wait for my confirmation; `patch` /
    `minor` → apply; `none` → skip), but the level is always **patch**. On an **unmerged
    feature branch**, skip the bump — the feature's own bump covers it — and say so. Add the
    CHANGELOG entry if the project keeps one.
-2. **Commit** — stage the patch's files (code + tests + docs + patch file + index + version
+2. **Trace** — before committing, write the final status (`implemented`, or `reviewed` if the
+   review ran) in the patch file and the index row, and fill the *Commit* section with the
+   subject and the branch (the hash is found later by the scope, `(feature-<n>.<x>)`), so the
+   trace lands in the same commit and no edit is left behind.
+3. **Commit** — stage the patch's files (code + tests + docs + patch file + index + version
    bump), never unrelated changes already in the working tree (list them to me and leave them
    alone). Message in the project's observed style; with conventional commits,
    `fix(feature-<n>.<x>): <title>` for a bugfix, otherwise the type that fits (`chore`,
    `refactor`, `perf`, `docs`) with the same scope; trailers if the project's rules require
    them. `auto_commit: true` → commit and show `git show --stat`; `false` (default) → show me
    the files and the message and **wait for my confirmation**.
-3. **Never push**, and never open a PR, unless I explicitly ask.
-
-Then fill the *Commit* section and set the status to `implemented` (`reviewed` if the review
-ran) in both the patch file and the index row.
+4. **Never push**, and never open a PR, unless I explicitly ask.
 
 ## Escalation
 
@@ -186,6 +210,7 @@ Type: bugfix | patch · Feature: <n> · Status: <status> · Date: <date>
 ## Change
 ## Verification
 ## Review
+## Docs
 ## Commit
 ```
 
