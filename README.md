@@ -412,8 +412,9 @@ references** — they never create a second index. If multiple conflicting conve
 
 **Feature status** in the index follows the pipeline: `specified` (`/feature-brainstorm`) →
 `planned` (`/feature-plan`) → `in-progress` → `implemented` (`/feature-dev`) → `reviewed` →
-`done`. `/feature-next` trusts the evidence on disk and in git over the index, and reports
-any drift between the two.
+`done`. Patches (`n.x`, from `/feature-patch`) follow the same lifecycle without `planned`,
+and end `escalated` when they turn out to be features. `/feature-next` trusts the evidence on
+disk and in git over the index, and reports any drift between the two.
 
 ## Configuration
 

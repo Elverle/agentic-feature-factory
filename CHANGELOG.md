@@ -7,12 +7,25 @@ default applies when it is missing.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-05
+
 ### Added
 - `/feature-patch [n | n.x] <description>`: a light path for bugfixes and small patches (few
   files, no contract or API change) — diagnosis, one Implementer with the build gate, optional
   review, docs and a patch commit, traced as patch `n.x` of a feature (index row +
   `patch-n.x.md`). It proposes the full workflow when the change turns out bigger.
 - `git.patch_branch_prefix` setting (default `fix/`): the branch `/feature-patch` creates.
+
+### Changed
+- `/feature-brainstorm` first tells a fix from a feature: a fix gets a short diagnosis saved as
+  a `specified` patch and is handed to `/feature-patch`, without consuming a feature number.
+- `/feature-next` tracks patches (their own stage table; open patches come before new
+  features) and `/feature-review` accepts a patch number `n.x`, reviewing the patch commit
+  against its diagnosis.
+
+### Fixed
+- `/feature-review` looked up a feature's commits with a loose `feature-<n>` match, which also
+  caught other features sharing the prefix (`8` vs `80`); the match is now exact.
 
 ## [1.5.0] - 2026-11-05
 
