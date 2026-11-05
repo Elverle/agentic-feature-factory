@@ -286,7 +286,8 @@ does not need a spec or a plan:
 It attaches to feature 5 (without a number: to the last developed feature), diagnoses the
 problem — for a bug, it reproduces it and defines the failing test — then dispatches one
 Implementer, runs the gate, offers the review, updates the docs only if something documented
-changed, bumps the **patch** version and commits on `fix/5.1-<slug>`. The trace:
+changed, bumps the **patch** version and commits on `fix/5.1-<slug>` — or, if feature 5 is not
+released yet, on feature 5's own branch, without a separate bump. The trace:
 
 ```
 content/
@@ -335,9 +336,9 @@ then offers to launch the command for you. It never merges, pushes or opens PRs.
 | `/arch-review [n]` | command / skill | Architecture review of the codebase against a planned feature (or the whole planned set) |
 | `/feature-dev <n> [plan-path]` | command / skill | Orchestrates Implementer subagents and verification gates, offers the optional review, then documentation, version bump and commit on a dedicated branch |
 | `/feature-patch [n\|n.x] <description>` | command / skill | Light path for bugfixes and small patches (few files, no contract or API change): diagnosis, one Implementer with the build gate, optional review, docs, patch version bump and commit — traced as patch `n.x` of a feature; proposes the full workflow when the change is bigger |
-| `/feature-review [n\|path]` | command / skill | **Optional, standalone** code-review: dispatches `feature-reviewer` on the feature's diff and reports findings by severity — no fixes, no commits |
+| `/feature-review [n\|n.x\|path]` | command / skill | **Optional, standalone** code-review: dispatches `feature-reviewer` on the feature's (or patch's) diff and reports findings by severity — no fixes, no commits |
 | `/feature-docs [scope]` | command / skill | Documents in wiki format via `feature-documenter` (feature / area / `lint`) and updates the project README when something user-facing changed, standalone |
-| `/feature-next [n]` | command / skill | Reads the project's feature state (index, feature folders, branches, working tree) and tells you the next command to run, then offers to launch it; read-only until you confirm |
+| `/feature-next [n\|n.x]` | command / skill | Reads the project's feature and patch state (index, feature folders, branches, working tree) and tells you the next command to run, then offers to launch it; read-only until you confirm |
 | `implementer` | agent | Executes ONE work package test-driven, within the WP's file boundaries; dispatched in parallel by `/feature-dev` |
 | `feature-documenter` | agent | Updates the project wiki (and the README, when the feature is user-facing) adopting the **project's** conventions (AGENTS.md/CLAUDE.md/GEMINI.md → existing wiki format → default structure) |
 | `feature-reviewer` | agent | Reviews a feature's diff for correctness, security, silent failures, performance, tests and contract drift; read-only, reports findings by severity |
@@ -424,11 +425,11 @@ disk and in git over the index, and reports any drift between the two.
 
   | Key | Default | Effect |
   | --- | --- | --- |
-  | `auto_commit` | `false` | `true`: `/feature-dev` commits without asking. `false`: it shows you the files and the message and waits |
+  | `auto_commit` | `false` | `true`: `/feature-dev` and `/feature-patch` commit without asking. `false`: it shows you the files and the message and waits |
   | `commit_per_wp` | `false` | `true`: one commit per work package too, made only after that wave's gate is green |
   | `branch_prefix` | `feature/` | The dedicated branch is `<prefix><feature-number>-<slug>`; the pipeline never commits on `main`/`master` |
   | `patch_branch_prefix` | `fix/` | Branch for `/feature-patch`: `<prefix><n>.<x>-<slug>`; a patch to a feature not merged yet goes on that feature's branch instead |
-  | `version_bump` | `ask` | `ask`: proposes the new version and waits. `patch`/`minor`: applies it silently. `none`: skips the bump |
+  | `version_bump` | `ask` | `ask`: proposes the new version and waits. `patch`/`minor`: applies it silently. `none`: skips the bump. `/feature-patch` always bumps at **patch** level |
 
   Pushing and opening a PR are **never** automatic: you ask for them explicitly.
 - **Configurable model tiers**:
