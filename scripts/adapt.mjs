@@ -25,6 +25,7 @@ const COMMAND_NAMES = [
   'feature-plan',
   'arch-review',
   'feature-dev',
+  'feature-patch',
   'feature-review',
   'feature-docs',
   'feature-next',
@@ -417,6 +418,8 @@ This project defines the agentic feature development pipeline:
 6. **Documentation**: Use skill \`feature-docs\` to document changes into the project wiki and README.
 7. **Closure**: \`feature-dev\` bumps the project version and commits the feature on a dedicated branch (see the \`git.*\` settings in \`.agentic-feature-factory.local.md\`).
 
+For bugfixes and small patches (few files, no contract or API change), use skill \`feature-patch\` instead of planning a feature: it keeps the gate, the optional review, the docs and the commit, and traces the change as patch \`n.x\` of a feature.
+
 At any point, use skill \`feature-next\` to read the project's feature state and get the natural next step (it offers to launch it).
 
 ## Specialized Subagents
@@ -530,6 +533,7 @@ When developing features in this project, adhere to the agentic feature developm
 - **Phase 3 (Execution)**: Run \`/feature-dev\` to implement work packages test-driven, verify build gates, document and commit the feature.
 - **Phase 4 (Review, optional)**: Run \`/feature-review\` on the feature's diff for findings by severity; triage and fixes stay with the user.
 - **Phase 5 (Documentation)**: Run \`/feature-docs\` to document changes into the project wiki and README adhering to existing conventions (integrated at the end of \`/feature-dev\`).
+- **Patches and bugfixes**: Run \`/feature-patch [n | n.x] <description>\` for small changes (few files, no contract or API change): diagnosis, build gate, optional review, docs and a patch commit, without spec or plan.
 - **Not sure what comes next?** Run \`/feature-next\` to read the project's feature state and get the next command to run.
 
 ## Build Verification Gates

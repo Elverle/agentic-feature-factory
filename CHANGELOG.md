@@ -7,6 +7,12 @@ default applies when it is missing.
 
 ## [Unreleased]
 
+### Added
+- `/feature-patch [n | n.x] <description>`: a light path for bugfixes and small patches (few
+  files, no contract or API change) — diagnosis, one Implementer with the build gate, optional
+  review, docs and a patch commit, traced as patch `n.x` of a feature (index row +
+  `patch-n.x.md`). It proposes the full workflow when the change turns out bigger.
+
 ## [1.5.0] - 2026-11-05
 
 ### Added
