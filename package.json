@@ -1,6 +1,6 @@
 {
   "name": "agentic-feature-factory",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "type": "module",
   "description": "Agent-driven feature development pipeline: work-package planning, architecture review, orchestration -> implementer -> optional code-review -> wiki + README documentation -> version bump and commit. Adapters for Claude Code, Antigravity, AGY CLI, Codex, and GitHub Copilot.",
   "main": "scripts/adapt.mjs",
