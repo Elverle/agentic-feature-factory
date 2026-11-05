@@ -91,7 +91,8 @@ Write the plan following these rules:
 
 5. **FINAL CHECKLIST**
    Close with the complete index of work packages, so no piece of the feature is lost in the
-   handover.
+   handover — as Markdown checkboxes, one per WP (`- [ ] WP<id> — <title>`): `/feature-dev`
+   ticks them wave by wave and `/feature-next` reads them to tell where a feature stands.
 
 6. **SELF-CHECK**
    Before delivering the final plan, re-read it and verify that every point above is
@@ -105,6 +106,6 @@ Write the plan following these rules:
 - Update the **`feature-index.md`** of the resolved layout with the feature's row,
   **respecting its existing column schema**. Only if no index exists at all, create it (at
   the default location `content/feature-index.md`) with the heading `# Feature Index` and a
-  table with columns `# | Title | Status | Date | Plan` (states: `planned` → `in-progress` →
-  `reviewed` → `done`).
+  table with columns `# | Title | Status | Date | Plan` (states: `specified` → `planned` →
+  `in-progress` → `implemented` → `reviewed` → `done`).
 - This plan is the input of **`/feature-dev <n>`**.

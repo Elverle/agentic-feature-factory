@@ -1,6 +1,6 @@
 {
   "name": "agentic-feature-factory",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Agent-driven feature development pipeline (backend and frontend): work-package planning, architecture review, Opus orchestration -> Implementer (Sonnet, high thinking) -> optional code-review -> wiki + README documentation that adopts the project conventions -> version bump and commit.",
   "author": {
     "name": "Elverle"

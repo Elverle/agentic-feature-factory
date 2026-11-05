@@ -67,8 +67,12 @@ report.
      same wave do not modify the same file — if they do, move one to the next wave).
    - WPs with strict dependencies go into later waves, after the previous wave's
      verification gate.
-3. Present the wave plan to me in compact form (table `Wave | WP | main files | depends on`)
-   **before** starting, so I can confirm it at a glance. Then proceed.
+3. **Resume** — if the plan's final checklist already has ticked WPs (an earlier run was
+   interrupted), those WPs are done: verify that their files exist, leave them out of the
+   waves and start from the first wave with unticked WPs. Tell me which WPs you are skipping.
+4. Present the wave plan to me in compact form (table `Wave | WP | main files | depends on`)
+   **before** starting, so I can confirm it at a glance. Then set the feature's status to
+   `in-progress` in the resolved layout's `feature-index.md` and proceed.
 
 ## Phase 2 — Grafts from the architecture review
 
@@ -135,7 +139,8 @@ After **all** the Implementers of a wave have returned `COMPLETE`:
 3. If the gate is **red**: do **not** advance to the next wave. Diagnose the cause (use a
    systematic debugging methodology) and re-dispatch a targeted Implementer on the guilty WP
    with the precise error message. Repeat until green.
-4. Only with a green build move on to the next wave.
+4. Only with a green build tick the wave's WPs in the plan's final checklist (`- [x]`) — this
+   is what lets an interrupted run resume (Phase 1) — and move on to the next wave.
 5. **If `commit_per_wp: true`**, now that the gate is green, commit the wave's WPs — one
    commit per WP, staging only that WP's files (see Phase 8's *Per-WP commits*). Never commit
    on a red gate.

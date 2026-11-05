@@ -16,68 +16,27 @@ import { fileURLToPath } from 'node:url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
+const GITHUB_REPO = 'Elverle/agentic-feature-factory';
 
-// Command metadata
-const COMMANDS = [
-  {
-    name: 'feature-brainstorm',
-    description: 'Explores user intent, requirements and technical approaches through proactive questions, producing a validated feature spec (spec.md). Triggers on /feature-brainstorm or when brainstorming a feature.',
-    argumentHint: '<feature-number or description>',
-    source: 'commands/feature-brainstorm.md',
-  },
-  {
-    name: 'feature-plan',
-    description: 'Analyzes requirements + codebase and asks clarifying questions, then produces a work-package plan. Handles feature numbering and folders. Triggers on /feature-plan or when asked to plan a feature.',
-    argumentHint: '<feature-number or description> [spec/master-plan path]',
-    source: 'commands/feature-plan.md',
-  },
-  {
-    name: 'feature-dev',
-    description: 'Orchestrates the development of a feature: coordinates implementer subagents, verification gates, the optional code-review, documentation, version bump and commit. Triggers on /feature-dev <n> [plan-path].',
-    argumentHint: '<feature-number> [plan-path]',
-    source: 'commands/feature-dev.md',
-  },
-  {
-    name: 'arch-review',
-    description: 'Architecture review of a feature or whole planned set: puts plan against codebase and proposes high-impact fixes with WP graft anchors. Triggers on /arch-review [n].',
-    argumentHint: '<feature-number> (empty = whole planned set)',
-    source: 'commands/arch-review.md',
-  },
-  {
-    name: 'feature-docs',
-    description: 'Documents code in wiki format via feature-documenter subagent (feature/area/lint), adopting project conventions. Triggers on /feature-docs [scope].',
-    argumentHint: '[feature-number | path/area | "lint"]',
-    source: 'commands/feature-docs.md',
-  },
-  {
-    name: 'feature-review',
-    description: "Optional code-review of an implemented feature: dispatches the feature-reviewer subagent on the feature's diff and reports findings by severity (no fixes, no commits). Triggers on /feature-review [n | path].",
-    argumentHint: '[feature-number | path | "--focus <area>"]',
-    source: 'commands/feature-review.md',
-  }
+// The .md files are the single source of truth: each command's description and argument
+// hint are read from its frontmatter, never duplicated here.
+const COMMAND_NAMES = [
+  'feature-brainstorm',
+  'feature-plan',
+  'arch-review',
+  'feature-dev',
+  'feature-review',
+  'feature-docs',
+  'feature-next',
 ];
 
-// `modelRole` selects which resolved model tier is injected into the agent file
-// (defaults to `implementer` when omitted).
-const AGENTS = [
-  {
-    name: 'implementer',
-    description: "Implementer of the /feature-dev pipeline. Receives ONE work package from the feature plan and implements it test-driven, staying within the WP's file boundaries.",
-    source: 'agents/implementer.md',
-    modelRole: 'implementer',
-  },
-  {
-    name: 'feature-documenter',
-    description: "Documenter of the /feature-dev and /feature-docs pipeline. Updates the project's wiki/technical documentation adopting project conventions.",
-    source: 'agents/feature-documenter.md',
-    modelRole: 'implementer',
-  },
-  {
-    name: 'feature-reviewer',
-    description: "Reviewer of the /feature-review command. Reviews a feature's diff for correctness, security, performance and convention violations, and reports findings by severity. Read-only: never edits, never commits.",
-    source: 'agents/feature-reviewer.md',
-    modelRole: 'reviewer',
-  }
+export const COMMANDS = COMMAND_NAMES.map(loadCommand);
+
+// `modelRole` selects which resolved model tier is injected into the agent file.
+export const AGENTS = [
+  { name: 'implementer', source: 'agents/implementer.md', modelRole: 'implementer' },
+  { name: 'feature-documenter', source: 'agents/feature-documenter.md', modelRole: 'implementer' },
+  { name: 'feature-reviewer', source: 'agents/feature-reviewer.md', modelRole: 'reviewer' },
 ];
 
 const BUILD_SKILLS = [
@@ -206,28 +165,56 @@ function readSource(relPath) {
   return fs.readFileSync(fullPath, 'utf8');
 }
 
+function readJson(relPath) {
+  return JSON.parse(readSource(relPath));
+}
+
 /**
  * Extracts YAML frontmatter and body from a markdown file.
+ * Supports single-line values and folded/literal block scalars (`>`, `>-`, `|`, `|-`).
  */
-function parseFrontmatter(content) {
+export function parseFrontmatter(content) {
   const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
   if (!match) {
     return { frontmatter: {}, body: content };
   }
   const lines = match[1].split(/\r?\n/);
   const frontmatter = {};
-  for (const line of lines) {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\s/.test(line)) continue; // continuation lines are consumed by their key below
     const idx = line.indexOf(':');
-    if (idx > 0) {
-      const key = line.slice(0, idx).trim();
-      let val = line.slice(idx + 1).trim();
-      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
-        val = val.slice(1, -1);
+    if (idx <= 0) continue;
+    const key = line.slice(0, idx).trim();
+    let val = line.slice(idx + 1).trim();
+    if (/^[>|]-?$/.test(val)) {
+      const block = [];
+      while (i + 1 < lines.length && (/^\s/.test(lines[i + 1]) || lines[i + 1] === '')) {
+        block.push(lines[++i].trim());
       }
-      frontmatter[key] = val;
+      val = val.startsWith('>') ? block.filter(Boolean).join(' ') : block.join('\n').trim();
+    } else if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+      val = val.slice(1, -1);
     }
+    frontmatter[key] = val;
   }
   return { frontmatter, body: match[2] };
+}
+
+/**
+ * Builds a command entry from commands/<name>.md. Skill-based platforms (Antigravity, Copilot)
+ * select skills by description, so the trigger is appended to the frontmatter description.
+ */
+function loadCommand(name) {
+  const source = `commands/${name}.md`;
+  const { frontmatter } = parseFrontmatter(readSource(source));
+  if (!frontmatter.description) {
+    throw new Error(`${source} has no frontmatter description`);
+  }
+  const argumentHint = frontmatter['argument-hint'] || '';
+  const trigger = `/${name}${argumentHint ? ` ${argumentHint}` : ''}`;
+  const description = `${frontmatter.description.replace(/\.$/, '')}. Triggers on ${trigger}.`;
+  return { name, source, description, argumentHint };
 }
 
 const DEFAULT_MODELS = {
@@ -378,19 +365,14 @@ function adaptAntigravity(options, config) {
 
   ensureDir(targetRoot, options.dryRun);
 
-  // 1. Write plugin.json manifest
-  let pkgVersion = "1.3.0";
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8'));
-    if (pkg.version) pkgVersion = pkg.version;
-  } catch {}
-
+  // 1. Write plugin.json manifest (package.json is the source of name, version and metadata)
+  const pkg = readJson('package.json');
   const pluginManifest = {
-    name: "agentic-feature-factory",
-    version: pkgVersion,
-    description: "Agent-driven feature development pipeline: work-package planning, architecture review, multi-agent orchestration, code-review and wiki documentation.",
-    author: { name: "Elverle" },
-    homepage: "https://github.com/Elverle/agentic-feature-factory#readme"
+    name: pkg.name,
+    version: pkg.version,
+    description: pkg.description,
+    author: { name: pkg.author },
+    homepage: pkg.homepage,
   };
   writeFileSafe(path.join(targetRoot, 'plugin.json'), JSON.stringify(pluginManifest, null, 2) + '\n', options.dryRun);
 
@@ -434,6 +416,8 @@ This project defines the agentic feature development pipeline:
 5. **Review (optional)**: Use skill \`feature-review\` to dispatch the \`feature-reviewer\` subagent on the feature's diff and get findings ordered by severity.
 6. **Documentation**: Use skill \`feature-docs\` to document changes into the project wiki and README.
 7. **Closure**: \`feature-dev\` bumps the project version and commits the feature on a dedicated branch (see the \`git.*\` settings in \`.agentic-feature-factory.local.md\`).
+
+At any point, use skill \`feature-next\` to read the project's feature state and get the natural next step (it offers to launch it).
 
 ## Specialized Subagents
 
@@ -546,6 +530,7 @@ When developing features in this project, adhere to the agentic feature developm
 - **Phase 3 (Execution)**: Run \`/feature-dev\` to implement work packages test-driven, verify build gates, document and commit the feature.
 - **Phase 4 (Review, optional)**: Run \`/feature-review\` on the feature's diff for findings by severity; triage and fixes stay with the user.
 - **Phase 5 (Documentation)**: Run \`/feature-docs\` to document changes into the project wiki and README adhering to existing conventions (integrated at the end of \`/feature-dev\`).
+- **Not sure what comes next?** Run \`/feature-next\` to read the project's feature state and get the next command to run.
 
 ## Build Verification Gates
 - **Spring Boot / Maven**: Formatting with Spotless (\`mvn spotless:apply\`) + full test suite with \`mvn verify\`.
@@ -559,42 +544,58 @@ When developing features in this project, adhere to the agentic feature developm
 // ==========================================
 // TARGET: Claude Code
 // ==========================================
+// Claude Code does not load plugin folders copied under ~/.claude/plugins/: plugins come from
+// a registered marketplace, which Claude Code snapshots into ~/.claude/plugins/cache/. This
+// adapter therefore registers the marketplace and enables the plugin in a settings.json:
+//   - global scope  → ~/.claude/settings.json, `directory` source pointing at this checkout;
+//   - project scope → <cwd>/.claude/settings.json, `github` source (shareable with a team).
+// Model tiers are not injected into files here: /feature-dev and /feature-review pass the
+// resolved `models.claude.*` to the Agent tool at dispatch time.
 function adaptClaude(options, config) {
   const models = resolvePlatformModels('claude', config, options);
-  console.log(`\n📦 Validating/Adapting for Claude Code (Scope: ${options.scope})...`);
+  console.log(`\n📦 Registering for Claude Code (Scope: ${options.scope})...`);
   console.log(`   Configured models: orchestrator=${models.orchestrator}, implementer=${models.implementer}, reviewer=${models.reviewer}`);
-  const targetRoot = options.dest || (
-    options.scope === 'global'
-      ? path.join(os.homedir(), '.claude', 'plugins', 'agentic-feature-factory')
-      : path.join(process.cwd(), '.claude-plugin')
-  );
 
-  if (options.scope === 'global') {
-    ensureDir(targetRoot, options.dryRun);
-    copyOrLink(path.join(REPO_ROOT, '.claude-plugin', 'plugin.json'), path.join(targetRoot, 'plugin.json'), options.mode, options.dryRun);
-    copyOrLink(path.join(REPO_ROOT, '.claude-plugin', 'marketplace.json'), path.join(targetRoot, 'marketplace.json'), options.mode, options.dryRun);
-    
-    // Copy commands, agents, skills
-    for (const cmd of COMMANDS) {
-      const dest = path.join(targetRoot, cmd.source);
-      const raw = readSource(cmd.source);
-      const transformed = injectFrontmatterModel(raw, models.orchestrator);
-      writeFileSafe(dest, transformed, options.dryRun);
+  const marketplaceName = readJson('.claude-plugin/marketplace.json').name;
+  const pluginName = readJson('.claude-plugin/plugin.json').name;
+  const pluginId = `${pluginName}@${marketplaceName}`;
+  const isGlobal = options.scope === 'global';
+
+  const settingsDir = options.dest || (isGlobal
+    ? path.join(os.homedir(), '.claude')
+    : path.join(process.cwd(), '.claude'));
+  const settingsPath = path.join(settingsDir, 'settings.json');
+  const source = isGlobal
+    ? { source: 'directory', path: REPO_ROOT }
+    : { source: 'github', repo: GITHUB_REPO };
+
+  let settings = {};
+  if (fs.existsSync(settingsPath)) {
+    try {
+      settings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    } catch (err) {
+      // Never overwrite a settings file we could not parse: it would drop the user's settings.
+      throw new Error(`Cannot parse ${settingsPath} (${err.message}); fix it, then re-run.`);
     }
-    for (const agent of AGENTS) {
-      const dest = path.join(targetRoot, agent.source);
-      const raw = readSource(agent.source);
-      const transformed = injectFrontmatterModel(raw, models[agent.modelRole] || models.implementer);
-      writeFileSafe(dest, transformed, options.dryRun);
-    }
-    for (const skill of BUILD_SKILLS) {
-      const dest = path.join(targetRoot, skill.source);
-      copyOrLink(path.join(REPO_ROOT, skill.source), dest, options.mode, options.dryRun);
-    }
-    console.log(`✨ Claude Code global plugin installed at: ${targetRoot}`);
-  } else {
-    console.log(`✓ Claude Code native repository structure verified at: ${REPO_ROOT}`);
   }
+
+  const known = settings.extraKnownMarketplaces?.[marketplaceName];
+  const alreadyRegistered = JSON.stringify(known?.source) === JSON.stringify(source)
+    && settings.enabledPlugins?.[pluginId] === true;
+
+  if (alreadyRegistered) {
+    console.log(`✓ ${pluginId} already registered in ${settingsPath}`);
+  } else {
+    settings.extraKnownMarketplaces = { ...settings.extraKnownMarketplaces, [marketplaceName]: { ...known, source } };
+    settings.enabledPlugins = { ...settings.enabledPlugins, [pluginId]: true };
+    writeFileSafe(settingsPath, JSON.stringify(settings, null, 2) + '\n', options.dryRun);
+  }
+
+  console.log(`\n💡 Next steps in Claude Code:`);
+  console.log(`   /plugin marketplace update ${marketplaceName}   # refresh the cached snapshot after a pull or edit`);
+  console.log(`   then restart the session and check /help for the /feature-* commands.`);
+  console.log(`   If they are missing: /plugin install ${pluginId}`);
+  console.log(`✨ Claude Code registration complete! Settings: ${settingsPath}`);
 }
 
 // ==========================================
@@ -649,5 +650,14 @@ function main() {
   console.log(`\n🎉 All operations completed successfully!`);
 }
 
-main();
+// Run only when executed as a CLI (directly or through the npm bin shim), not when imported.
+const invokedPath = process.argv[1] ? fs.realpathSync(path.resolve(process.argv[1])) : '';
+if (invokedPath === fs.realpathSync(__filename)) {
+  try {
+    main();
+  } catch (err) {
+    console.error(`\n❌ ${err.message}`);
+    process.exit(1);
+  }
+}
 
