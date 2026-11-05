@@ -43,7 +43,8 @@ feature and goes through the full workflow (see *Escalation*).
      starts at Phase 2 (verify the diagnosis against the code, then the size check); an
      `in-progress` one continues from the first empty section among *Change*, *Verification*,
      *Review*, *Docs*, *Commit*. If `n.x` is `done` or `escalated`, do not redo it: tell me,
-     and propose a new patch `n.<next>` instead.
+     and propose a new patch `n.<next>` instead. If `n.x` does not exist (no patch file, no
+     index row, no branch, no commit), tell me and propose the next free number instead.
 3. **Last developed feature** — resolve it from **git first**: the feature whose commit
    (`feat(feature-<n>)…` or the project's equivalent subject) is the most recent across
    branches (`git log --all -E --grep "\(feature-[0-9]+\)" --format="%ad %s" --date=iso` —
@@ -129,9 +130,15 @@ Dispatch **one `implementer` agent**:
   (`spring-maven-build` / `node-frontend-build`), as in `/feature-dev` Phase 3; the closing
   report defined by the agent.
 
-**Growth check** — if the implementer returns `NEEDS REVISION` because it needs files outside
-the list, re-apply the size check: still a patch → extend the list (update the patch file's
-*Diagnosis*) and re-dispatch; no longer a patch → *Escalation*.
+**Growth check** — read the implementer's report for any file outside the diagnosed list: a
+`NEEDS REVISION` because it needs one, and also out-of-list files created, modified or flagged
+**even in a `COMPLETE` report** (the implementer only blocks when the acceptance criteria are
+at stake). Any such file → re-apply the size check: still a patch → extend the list (update
+the patch file's *Diagnosis*) and re-dispatch if needed; no longer a patch → *Escalation*.
+
+If the implementer comes back **`BLOCKED` or with questions**, handle it as `/feature-dev`
+Phase 5: resolve it from the code and the diagnosis when you can; if the answer changes the
+patch's behavior and the decision is mine, stop and ask me — never let the agent invent.
 
 Then run the **verification gate** yourself, exactly as `/feature-dev` Phase 4 for the stack
 (Maven: `mvn spotless:apply` + `mvn verify`, Docker for Testcontainers; Node: lint + typecheck +
@@ -167,16 +174,20 @@ If you are on the main branch, stop: go back to Phase 4 — a patch is never com
 whatever path led here.
 
 1. **Version bump** — per `version_bump` (`ask` → propose, wait for my confirmation; `patch` /
-   `minor` → apply; `none` → skip), but the level is always **patch**. On an **unmerged
-   feature branch**, skip the bump — the feature's own bump covers it — and say so. Add the
-   CHANGELOG entry if the project keeps one.
+   `minor` → apply; `none` → skip), but the level is always **patch**. Detect the version
+   holder as `/feature-dev` Phase 8 does; if the project has no version holder, say so and
+   skip — never invent one. On an **unmerged feature branch**, skip the bump — the feature's
+   own bump covers it — and say so. If the project keeps a CHANGELOG, add the CHANGELOG entry
+   even when the bump is skipped (under the section the next release will use, e.g.
+   `[Unreleased]`).
 2. **Trace** — before committing, write the final status (`implemented`, or `reviewed` if the
    review ran) in the patch file and the index row, and fill the *Commit* section with the
    subject and the branch (the hash is found later by the scope, `(feature-<n>.<x>)`), so the
    trace lands in the same commit and no edit is left behind.
-3. **Commit** — stage the patch's files (code + tests + docs + patch file + index + version
-   bump), never unrelated changes already in the working tree (list them to me and leave them
-   alone). Message in the project's observed style; with conventional commits,
+3. **Commit** — stage the patch's files (code + tests + docs + patch file + version bump),
+   never unrelated changes already in the working tree (list them to me and leave them
+   alone). The index often carries other rows' uncommitted edits: stage only the patch's row of
+   `feature-index.md` (`git add -p`); if that hunk cannot be isolated, ask me. Message in the project's observed style; with conventional commits,
    `fix(feature-<n>.<x>): <title>` for a bugfix, otherwise the type that fits (`chore`,
    `refactor`, `perf`, `docs`) with the same scope; trailers if the project's rules require
    them. `auto_commit: true` → commit and show `git show --stat`; `false` (default) → show me
@@ -190,10 +201,13 @@ When the size check fails (Phase 3 or the growth check):
 - set the patch's status to `escalated` in the patch file and the index row — writing both
   first, with *Symptom / request* and *Diagnosis* filled, if the size check failed before
   Phase 4 wrote them. The diagnosis is kept: it becomes the planning input;
-- propose `/feature-plan <next-feature-number> <path-to-patch-file>` (or `/feature-brainstorm`
-  if the picture is unclear);
+- propose `/feature-plan <m> <path-to-patch-file>`, where `<m>` is the next free feature
+  number (or `/feature-brainstorm` if the picture is unclear), and write
+  `Escalated to: feature <m>` under the patch file's status line, so `/feature-next` knows
+  which feature to follow;
 - **commit nothing**. If the implementer already changed files, list them to me and leave the
-  decision (keep, stash, discard) to me.
+  decision (keep, stash, discard) to me. If Phase 4 created a patch branch that has no commits
+  of its own, tell me — it can be deleted once the changes are dealt with.
 
 ## The patch file
 
