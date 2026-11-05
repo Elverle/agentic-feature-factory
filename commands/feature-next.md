@@ -29,12 +29,12 @@ number `n.x` on that patch; empty means the whole project.
 
 | Patch stage | Evidence | Natural next step |
 | --- | --- | --- |
-| `specified` | `patch-n.x.md` with a diagnosis only, no patch branch or commit | `/feature-patch n.x` |
-| `in-progress` | patch branch (or feature `n`'s unmerged branch) without the patch commit, or the patch file's *Change* section filled but no *Commit* | `/feature-patch n.x` (it resumes) |
+| `specified` | patch status `specified` (diagnosis only), no patch commit | `/feature-patch n.x` |
+| `in-progress` | patch status `in-progress`, no patch commit yet (on its patch branch or feature `n`'s unreleased branch) | `/feature-patch n.x` (it resumes) |
 | `implemented` | patch commit present, no review | `/feature-review n.x` (optional), otherwise merge/PR |
 | `reviewed` | review ran, branch not merged into main | open a PR / merge — **your call, never mine** |
 | `done` | patch commit merged into main, or status `done` | nothing |
-| `escalated` | status `escalated` | nothing for the patch — follow the feature it became |
+| `escalated` | status `escalated` | nothing for the patch — follow the feature named in the patch file's `Escalated to:` line |
 
 ## Phase 1 — Resolve the layout and settings
 

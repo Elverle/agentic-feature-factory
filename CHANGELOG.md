@@ -7,6 +7,29 @@ default applies when it is missing.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-05
+
+### Added
+- `/feature-brainstorm --feature` skips the fix classification; after a fix hand-over, saying
+  "treat it as a feature" removes the patch trace and continues as a feature.
+
+### Fixed
+- `/feature-patch`:
+  - resuming a patch number that does not exist proposes the next free number;
+  - `BLOCKED` implementers and their questions are handled as in `/feature-dev`, and
+    out-of-list files in a `COMPLETE` report now trigger the growth check;
+  - a project without a version holder skips the bump instead of inventing one, and the
+    CHANGELOG entry is kept when the bump is skipped;
+  - only the patch's row of `feature-index.md` is staged;
+  - an escalated patch records `Escalated to: feature <m>`, and a leftover empty patch branch
+    is reported.
+- `/feature-review` asks when a patch's commit lookup finds no commit or several.
+- `/feature-next` tells `specified` and `in-progress` patches apart by their status and follows
+  an escalated patch to its feature.
+- README: the `n.x` form in the `/feature-review` and `/feature-next` rows, `/feature-patch` in
+  the `auto_commit` and `version_bump` rows, and the feature-branch exception in the quick start.
+- The git-settings test checks the README's git table only.
+
 ## [1.6.0] - 2026-11-05
 
 ### Added

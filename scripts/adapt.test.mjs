@@ -68,16 +68,18 @@ test('manifests agree on name and version', () => {
   assert.ok(marketplace.plugins.some((p) => p.name === plugin.name), 'marketplace does not list the plugin');
 });
 
-test('every git setting in the example file is documented in the README', () => {
+test('every git setting in the example file is documented in the README git table', () => {
   const example = readText('.agentic-feature-factory.local.example.md');
   const gitBlock = example.match(/^git:\r?\n((?:[ \t]+.*\r?\n)+)/m);
   assert.ok(gitBlock, 'no git: block in the example settings file');
   const keys = [...gitBlock[1].matchAll(/^\s+(\w+):/gm)].map((m) => m[1]);
   assert.ok(keys.length > 0, 'no keys under git:');
-  const readme = readText('README.md');
+  // Only the "Git behaviour" list item counts: from its bullet to the next top-level bullet.
+  const gitTable = readText('README.md').match(/^- \*\*Git behaviour\*\*[\s\S]*?(?=^- \*\*)/m);
+  assert.ok(gitTable, 'README has no "Git behaviour" section');
   for (const key of keys) {
-    // Table rows may be indented (the git table sits inside a list item).
-    assert.match(readme, new RegExp(`^\\s*\\|\\s*\`${key}\`\\s*\\|`, 'm'), `README has no table row for git.${key}`);
+    // Table rows are indented: the table sits inside the list item.
+    assert.match(gitTable[0], new RegExp(`^\\s*\\|\\s*\`${key}\`\\s*\\|`, 'm'), `README git table has no row for git.${key}`);
   }
 });
 
@@ -121,6 +123,58 @@ test('feature-patch: docs use the documenter in document feature mode', () => {
 
 test('feature-patch: an unknown or unimplemented feature number is questioned', () => {
   assert.match(patchPrompt(), /feature `n` does not exist or is not implemented[^.]*ask me/i);
+});
+
+test('feature-patch: resuming a patch that does not exist proposes the next free number', () => {
+  assert.match(patchPrompt(), /If `n\.x` does not exist[^.]*next free number/);
+});
+
+test('feature-patch: BLOCKED, questions and out-of-list files in a COMPLETE report are handled', () => {
+  const p = patchPrompt();
+  assert.match(p, /`BLOCKED` or with questions/);
+  assert.match(p, /even in a `COMPLETE` report/);
+});
+
+test('feature-patch: no version holder skips the bump, and the CHANGELOG entry survives a skipped bump', () => {
+  const p = patchPrompt();
+  assert.match(p, /no version holder[^.]*never invent one/i);
+  assert.match(p, /CHANGELOG entry[^.]*even when the bump is skipped/);
+});
+
+test('feature-patch: only the patch row of the index is staged', () => {
+  assert.match(patchPrompt(), /stage only the patch's row of `feature-index\.md`/);
+});
+
+test('feature-patch: escalation records the target feature and reports a leftover branch', () => {
+  const p = patchPrompt();
+  assert.match(p, /Escalated to: feature <m>/);
+  assert.match(p, /branch[^.]*has no commits[^.]*tell me/);
+});
+
+const prompt = (name) => readText(`commands/${name}.md`).replace(/\s+/g, ' ');
+
+test('feature-review: a patch lookup with zero or several commits asks', () => {
+  assert.match(prompt('feature-review'), /finds no commit or more than one, \*\*ask me\*\*/);
+});
+
+test('feature-next: patch stages are told apart by the patch status', () => {
+  const p = prompt('feature-next');
+  assert.match(p, /\| `specified` \| patch status `specified`/);
+  assert.match(p, /\| `in-progress` \| patch status `in-progress`/);
+  assert.match(p, /feature named in the patch file's `Escalated to:`/);
+});
+
+test('feature-brainstorm: the fix classification can be overridden', () => {
+  assert.match(prompt('feature-brainstorm'), /`--feature`/);
+});
+
+test('README shows the patch number form and /feature-patch in the git settings', () => {
+  const readme = readText('README.md');
+  assert.match(readme, /\| `\/feature-review \[n\\\|n\.x\\\|path\]` \|/);
+  assert.match(readme, /\| `\/feature-next \[n\\\|n\.x\]` \|/);
+  for (const key of ['auto_commit', 'version_bump']) {
+    assert.match(readme, new RegExp(`^\\s*\\|\\s*\`${key}\`[^\\n]*/feature-patch`, 'm'), `${key} row omits /feature-patch`);
+  }
 });
 
 test('the CHANGELOG has an entry for the current version', () => {

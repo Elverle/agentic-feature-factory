@@ -49,7 +49,7 @@ For a **patch number** with a clean tree, rule 2 applies only on the patch's own
 (`<patch_branch_prefix><n>.<x>-*`, default `fix/`): a patch committed on its feature's
 unmerged branch would drag the whole feature into the diff. Anywhere else, review the patch
 commit itself — `git log --oneline -F --grep "(feature-<n>.<x>)"` — and diff it against its
-parent.
+parent. If that finds no commit or more than one, **ask me** which range to review.
 
 State the resolved target to me in one line (command + number of files + insertions/deletions)
 before dispatching.
